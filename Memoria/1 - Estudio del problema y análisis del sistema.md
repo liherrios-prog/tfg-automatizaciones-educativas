@@ -22,14 +22,14 @@ El sistema implementado ofrece:
 
 - Una infraestructura Docker portátil que incluye n8n como motor de automatización y SQLite como base de datos para persistencia.
 - Scripts de instalación y arranque multiplataforma (Windows y Linux) para facilitar la puesta en marcha.
-- Un conjunto de workflows de automatización agrupados en tres categorías: comunicaciones educativas, gestión académica y generación de contenido.
+- Un conjunto de workflows de automatización agrupados en siete categorías: comunicaciones educativas, gestión académica, mantenimiento, gestión TIC, convivencia, gestión de recursos y gestión de personal docente.
 - Documentación completa que incluye manuales de instalación y de uso.
 - Un repositorio en GitHub como canal de distribución alternativo al USB.
 
 ### Objetivos
 
 1. Desplegar un entorno n8n funcional mediante Docker Compose que sea completamente portátil y no requiera descargas adicionales una vez instalado.
-2. Crear automatizaciones útiles para tareas reales de un entorno educativo, cubriendo las áreas de comunicación, gestión y generación de contenido.
+2. Crear automatizaciones útiles para tareas reales de un entorno educativo, cubriendo las áreas de comunicación, gestión académica, mantenimiento, gestión TIC, convivencia, gestión de recursos y gestión de personal.
 3. Documentar todo el proceso de forma que cualquier usuario con conocimientos básicos pueda poner en marcha el sistema y utilizar los workflows.
 4. Proporcionar una solución escalable donde se puedan añadir nuevas automatizaciones según las necesidades del centro.
 
@@ -43,7 +43,7 @@ El desarrollo del proyecto se organiza en las siguientes fases:
 | 2. Scripts de instalación | Scripts de arranque y parada multiplataforma | Fase 1 |
 | 3. Workflows de comunicaciones | Automatizaciones de emails, notificaciones y avisos | Fase 1 |
 | 4. Workflows de gestión académica | Automatizaciones de notas, asistencia y administración | Fase 1 |
-| 5. Workflows de generación de contenido | Automatizaciones para crear material didáctico e informes | Fase 1 |
+| 5. Workflows de gestión de recursos, personal y calidad | Automatizaciones de solicitudes, guardias, alertas y encuestas | Fase 1 |
 | 6. Repositorio GitHub | Estructura del repositorio y documentación de distribución | Fases 1-5 |
 | 7. Documentación | Memoria completa del proyecto siguiendo la plantilla del centro | Todas |
 

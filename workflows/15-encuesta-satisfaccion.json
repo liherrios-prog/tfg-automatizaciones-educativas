@@ -1,0 +1,199 @@
+{
+  "name": "15 - Encuesta de Satisfaccion Automatizada",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Encuesta de Satisfaccion Automatizada\n\nEl primer dia de cada mes envia un enlace a una encuesta de satisfaccion a las familias de cada curso. Los resultados se recogen en una hoja de calculo y se genera un resumen con las puntuaciones medias por categoria.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Crear un Google Form con preguntas de satisfaccion (atencion al alumno, comunicacion, organizacion, etc.) y copiar el enlace\n3. Crear hoja \"Familias\" con columnas: nombre_familia, email, curso\n4. Crear hoja \"Resultados Encuesta\" donde se volcaran las respuestas (via Google Forms)\n5. Poner el enlace del formulario en el nodo \"Componer Email\"\n\n**Frecuencia:** Mensual (dia 1 a las 10:00)\n\n**Categoria:** Calidad y mejora continua",
+        "height": 380,
+        "width": 420,
+        "color": 3
+      },
+      "id": "sticky-15-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 40]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0015-4000-8000-000000000001",
+      "name": "Dia 1 de cada mes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400],
+      "notes": "Se ejecuta el primer dia de cada mes a las 10:00. Asi las familias reciben la encuesta con regularidad sin que nadie tenga que acordarse de enviarla."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0015-4000-8000-000000000002",
+      "name": "Leer Familias",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [460, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Lee el listado de familias con sus emails y cursos. Cada familia recibe el enlace a la encuesta una vez al mes."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-0015-4000-8000-000000000003",
+      "name": "Tiene email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 400],
+      "notes": "Filtra familias sin email para evitar envios fallidos."
+    },
+    {
+      "parameters": {
+        "jsCode": "const familia = $input.first().json;\nconst meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];\nconst mes = meses[new Date().getMonth()];\nconst anio = new Date().getFullYear();\n\n// CAMBIAR ESTE ENLACE por el de tu Google Form real\nconst enlaceEncuesta = 'https://forms.gle/XXXXXXXXXXXXXXXX';\n\nconst cuerpo = `Estimada familia ${familia.nombre_familia},\\n\\n`\n  + `Desde el centro queremos conocer su opinion sobre el funcionamiento del curso ${familia.curso} durante el mes de ${mes}.\\n\\n`\n  + `Le agradeceriamos que dedicara 2 minutos a completar esta breve encuesta de satisfaccion:\\n\\n`\n  + `${enlaceEncuesta}\\n\\n`\n  + `Sus respuestas son anonimas y nos ayudan a mejorar.\\n\\n`\n  + `Gracias por su colaboracion,\\n`\n  + `Equipo directivo`;\n\nreturn [{ json: {\n  email: familia.email,\n  asunto: `Encuesta de satisfaccion - ${mes} ${anio} (${familia.curso})`,\n  cuerpo,\n  nombre_familia: familia.nombre_familia,\n  curso: familia.curso\n}}];"
+      },
+      "id": "a1b2c3d4-0015-4000-8000-000000000004",
+      "name": "Componer Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "notes": "Genera un email personalizado con el enlace a la encuesta de Google Forms. El enlace debe cambiarse por el del formulario real del centro."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "text",
+        "message": "={{ $json.cuerpo }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0015-4000-8000-000000000005",
+      "name": "Enviar Encuesta",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1120, 300],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Envia el email con el enlace a la encuesta a cada familia. Al ser un bucle implicito de n8n, cada familia recibe su email personalizado."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "values": {
+            "values": [
+              { "column": "fecha_envio", "value": "={{ $now.format('dd/MM/yyyy HH:mm') }}" },
+              { "column": "familia", "value": "={{ $json.nombre_familia }}" },
+              { "column": "curso", "value": "={{ $json.curso }}" },
+              { "column": "email", "value": "={{ $json.email }}" }
+            ]
+          }
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0015-4000-8000-000000000006",
+      "name": "Registrar Envio",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1340, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Registra cada envio en una hoja de log para saber a quien se le ha enviado la encuesta y cuando. Util para seguimiento y para no enviar duplicados."
+    }
+  ],
+  "connections": {
+    "Dia 1 de cada mes": {
+      "main": [
+        [{ "node": "Leer Familias", "type": "main", "index": 0 }]
+      ]
+    },
+    "Leer Familias": {
+      "main": [
+        [{ "node": "Tiene email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Tiene email": {
+      "main": [
+        [{ "node": "Componer Email", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Componer Email": {
+      "main": [
+        [{ "node": "Enviar Encuesta", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enviar Encuesta": {
+      "main": [
+        [{ "node": "Registrar Envio", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "educativo" },
+    { "name": "calidad" },
+    { "name": "familias" }
+  ]
+}

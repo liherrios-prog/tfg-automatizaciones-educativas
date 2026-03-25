@@ -1,0 +1,294 @@
+{
+  "name": "14 - Gestion de Guardias y Sustituciones",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Gestion de Guardias y Sustituciones\n\nCuando un profesor comunica su ausencia mediante un webhook, el workflow consulta el cuadrante de guardias del dia, asigna un sustituto disponible y notifica tanto al sustituto como a jefatura de estudios.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Crear hoja \"Cuadrante Guardias\" con columnas: dia_semana, franja_horaria, profesor_guardia, email_profesor\n3. Crear hoja \"Ausencias\" con columnas: fecha, profesor_ausente, motivo, franja, sustituto_asignado\n4. Formato del POST: { profesor, motivo, franja_horaria (1a/2a/3a/4a/5a/6a) }\n\n**URL del webhook:** http://localhost:5678/webhook/ausencia-profesor\n\n**Categoria:** Gestion de personal docente",
+        "height": 380,
+        "width": 420,
+        "color": 5
+      },
+      "id": "sticky-14-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ausencia-profesor",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000001",
+      "name": "Webhook Ausencia",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "notes": "El profesor comunica su ausencia enviando un POST con su nombre, motivo y franja horaria afectada. El modo lastNode permite devolver al profesor los datos del sustituto asignado."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-fecha",
+              "name": "fecha",
+              "value": "={{ $now.format('dd/MM/yyyy') }}",
+              "type": "string"
+            },
+            {
+              "id": "field-profesor",
+              "name": "profesor_ausente",
+              "value": "={{ $json.body.profesor || $json.profesor || 'No indicado' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-motivo",
+              "name": "motivo",
+              "value": "={{ $json.body.motivo || $json.motivo || 'No especificado' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-franja",
+              "name": "franja_horaria",
+              "value": "={{ $json.body.franja_horaria || $json.franja_horaria || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-dia",
+              "name": "dia_semana",
+              "value": "={{ ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'][new Date().getDay()] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000002",
+      "name": "Preparar Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 400],
+      "notes": "Estructura los datos de la ausencia y calcula automaticamente el dia de la semana para buscar en el cuadrante de guardias."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000003",
+      "name": "Leer Cuadrante Guardias",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [680, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Lee el cuadrante de guardias del centro. Cada fila indica que profesor tiene guardia en cada dia y franja horaria."
+    },
+    {
+      "parameters": {
+        "jsCode": "const ausencia = $('Preparar Datos').first().json;\nconst guardias = $input.all().map(i => i.json);\n\n// Buscar profesor de guardia para este dia y franja\nconst sustituto = guardias.find(g =>\n  (g.dia_semana || '').toLowerCase() === ausencia.dia_semana.toLowerCase() &&\n  (g.franja_horaria || '') === ausencia.franja_horaria\n);\n\nif (sustituto) {\n  return [{ json: {\n    ...ausencia,\n    sustituto_nombre: sustituto.profesor_guardia,\n    sustituto_email: sustituto.email_profesor,\n    asignado: true\n  }}];\n} else {\n  return [{ json: {\n    ...ausencia,\n    sustituto_nombre: 'No disponible',\n    sustituto_email: '',\n    asignado: false\n  }}];\n}"
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000004",
+      "name": "Buscar Sustituto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "notes": "Cruza el dia y la franja horaria con el cuadrante de guardias para encontrar al profesor disponible. Si no hay nadie asignado, marca la ausencia como sin sustituto."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000005",
+      "name": "Registrar Ausencia",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1120, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Guarda el registro de la ausencia con el sustituto asignado en la hoja de ausencias para tener un historico completo."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.asignado }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000006",
+      "name": "Sustituto encontrado",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 400],
+      "notes": "Si se encontro un profesor de guardia disponible, se le notifica. Si no, se avisa a jefatura para que gestione manualmente."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.sustituto_email }}",
+        "subject": "=Guardia asignada - {{ $json.franja_horaria }} hora ({{ $json.fecha }})",
+        "emailType": "text",
+        "message": "=Hola {{ $json.sustituto_nombre }},\n\nSe te ha asignado una guardia para hoy:\n\n- Franja: {{ $json.franja_horaria }} hora\n- Profesor ausente: {{ $json.profesor_ausente }}\n- Motivo: {{ $json.motivo }}\n\nPor favor, acude al aula correspondiente.\n\nEste mensaje se ha generado automaticamente.",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000007",
+      "name": "Notificar Sustituto",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 300],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Envia email al profesor de guardia asignado con los detalles de la sustitucion."
+    },
+    {
+      "parameters": {
+        "sendTo": "jefe.estudios@centro.edu",
+        "subject": "=SIN SUSTITUTO: Ausencia de {{ $json.profesor_ausente }} - {{ $json.franja_horaria }} hora",
+        "emailType": "text",
+        "message": "=ATENCION: No se ha encontrado profesor de guardia disponible.\n\nProfesor ausente: {{ $json.profesor_ausente }}\nMotivo: {{ $json.motivo }}\nFranja: {{ $json.franja_horaria }} hora\nFecha: {{ $json.fecha }}\n\nEs necesario asignar un sustituto manualmente.",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000008",
+      "name": "Avisar Jefatura",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 500],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Si no hay nadie de guardia en esa franja, avisa a jefatura de estudios para que resuelva la situacion manualmente."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', profesor_ausente: $json.profesor_ausente, sustituto: $json.sustituto_nombre, franja: $json.franja_horaria, mensaje: 'Guardia asignada y notificada' }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000009",
+      "name": "Respuesta Con Sustituto",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1780, 300],
+      "notes": "Devuelve al profesor ausente los datos del sustituto asignado."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'pendiente', profesor_ausente: $json.profesor_ausente, sustituto: 'No disponible', franja: $json.franja_horaria, mensaje: 'No hay profesor de guardia. Se ha avisado a jefatura.' }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0014-4000-8000-000000000010",
+      "name": "Respuesta Sin Sustituto",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1780, 500],
+      "notes": "Informa al profesor ausente de que no hay sustituto disponible y que jefatura ha sido notificada."
+    }
+  ],
+  "connections": {
+    "Webhook Ausencia": {
+      "main": [
+        [{ "node": "Preparar Datos", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preparar Datos": {
+      "main": [
+        [{ "node": "Leer Cuadrante Guardias", "type": "main", "index": 0 }]
+      ]
+    },
+    "Leer Cuadrante Guardias": {
+      "main": [
+        [{ "node": "Buscar Sustituto", "type": "main", "index": 0 }]
+      ]
+    },
+    "Buscar Sustituto": {
+      "main": [
+        [{ "node": "Registrar Ausencia", "type": "main", "index": 0 }]
+      ]
+    },
+    "Registrar Ausencia": {
+      "main": [
+        [{ "node": "Sustituto encontrado", "type": "main", "index": 0 }]
+      ]
+    },
+    "Sustituto encontrado": {
+      "main": [
+        [{ "node": "Notificar Sustituto", "type": "main", "index": 0 }],
+        [{ "node": "Avisar Jefatura", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notificar Sustituto": {
+      "main": [
+        [{ "node": "Respuesta Con Sustituto", "type": "main", "index": 0 }]
+      ]
+    },
+    "Avisar Jefatura": {
+      "main": [
+        [{ "node": "Respuesta Sin Sustituto", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "educativo" },
+    { "name": "gestion-personal" },
+    { "name": "webhook" }
+  ]
+}

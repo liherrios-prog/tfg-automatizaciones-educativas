@@ -1,0 +1,231 @@
+{
+  "name": "13 - Solicitud de Material y Recursos",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Solicitud de Material y Recursos\n\nPermite a los profesores solicitar material (fotocopias, material de laboratorio, reserva de aulas especiales) mediante un webhook. La solicitud se registra en Google Sheets y se notifica al coordinador responsable.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Crear hoja con columnas: fecha, profesor, tipo_material, descripcion, urgencia, estado\n3. Configurar el email del coordinador en el nodo \"Notificar Coordinador\"\n4. Formato del POST: { profesor, tipo (fotocopias/laboratorio/aula/informatica/otro), descripcion, urgencia (baja/media/alta) }\n\n**URL del webhook:** http://localhost:5678/webhook/solicitud-material\n\n**Categoria:** Gestion de recursos",
+        "height": 370,
+        "width": 420,
+        "color": 7
+      },
+      "id": "sticky-13-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "solicitud-material",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000001",
+      "name": "Webhook Solicitud",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "notes": "Recibe solicitudes de material por POST. El modo lastNode permite devolver una confirmacion al profesor una vez procesada la solicitud."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-fecha",
+              "name": "fecha",
+              "value": "={{ $now.format('dd/MM/yyyy') }}",
+              "type": "string"
+            },
+            {
+              "id": "field-hora",
+              "name": "hora",
+              "value": "={{ $now.format('HH:mm') }}",
+              "type": "string"
+            },
+            {
+              "id": "field-profesor",
+              "name": "profesor",
+              "value": "={{ $json.body.profesor || $json.profesor || 'No indicado' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-tipo",
+              "name": "tipo_material",
+              "value": "={{ $json.body.tipo || $json.tipo || 'Otro' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-descripcion",
+              "name": "descripcion",
+              "value": "={{ $json.body.descripcion || $json.descripcion || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-urgencia",
+              "name": "urgencia",
+              "value": "={{ $json.body.urgencia || $json.urgencia || 'media' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-estado",
+              "name": "estado",
+              "value": "pendiente",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000002",
+      "name": "Preparar Registro",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 400],
+      "notes": "Estructura los datos de la solicitud y anade fecha, hora y estado inicial pendiente. Normaliza los campos para que siempre tengan el mismo formato en la hoja."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000003",
+      "name": "Guardar Solicitud",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [680, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Anade la solicitud como nueva fila en la hoja de solicitudes. El coordinador puede abrir la hoja en cualquier momento para ver todas las solicitudes pendientes."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.urgencia }}",
+              "rightValue": "alta",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000004",
+      "name": "Es urgente",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "notes": "Las solicitudes con urgencia alta se notifican inmediatamente al coordinador por email. Las de urgencia media o baja solo quedan registradas en la hoja para revision periodica."
+    },
+    {
+      "parameters": {
+        "sendTo": "coordinador@centro.edu",
+        "subject": "=URGENTE: Solicitud de {{ $json.tipo_material }} - {{ $json.profesor }}",
+        "emailType": "text",
+        "message": "=SOLICITUD URGENTE DE MATERIAL\n\nProfesor: {{ $json.profesor }}\nTipo: {{ $json.tipo_material }}\nDescripcion: {{ $json.descripcion }}\nFecha: {{ $json.fecha }} a las {{ $json.hora }}\n\nPor favor, atienda esta solicitud lo antes posible.",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000005",
+      "name": "Notificar Coordinador",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1120, 300],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Solo se envia para solicitudes de urgencia alta. El coordinador recibe un email con todos los detalles para actuar de inmediato."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', mensaje: 'Solicitud registrada correctamente', profesor: $json.profesor, tipo: $json.tipo_material, urgencia: $json.urgencia, estado: 'pendiente' }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000006",
+      "name": "Respuesta OK Urgente",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 300],
+      "notes": "Devuelve confirmacion JSON al profesor tras registrar la solicitud urgente."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', mensaje: 'Solicitud registrada correctamente', profesor: $json.profesor, tipo: $json.tipo_material, urgencia: $json.urgencia, estado: 'pendiente' }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0013-4000-8000-000000000007",
+      "name": "Respuesta OK Normal",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 500],
+      "notes": "Devuelve confirmacion JSON al profesor. Las solicitudes no urgentes se revisan periodicamente en la hoja."
+    }
+  ],
+  "connections": {
+    "Webhook Solicitud": {
+      "main": [
+        [{ "node": "Preparar Registro", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preparar Registro": {
+      "main": [
+        [{ "node": "Guardar Solicitud", "type": "main", "index": 0 }]
+      ]
+    },
+    "Guardar Solicitud": {
+      "main": [
+        [{ "node": "Es urgente", "type": "main", "index": 0 }]
+      ]
+    },
+    "Es urgente": {
+      "main": [
+        [{ "node": "Notificar Coordinador", "type": "main", "index": 0 }],
+        [{ "node": "Respuesta OK Normal", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notificar Coordinador": {
+      "main": [
+        [{ "node": "Respuesta OK Urgente", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "educativo" },
+    { "name": "gestion-recursos" },
+    { "name": "webhook" }
+  ]
+}

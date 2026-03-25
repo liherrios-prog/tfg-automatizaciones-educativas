@@ -12,6 +12,14 @@ n8n-data/
 # === GSD Planning (interno) ===
 .planning/
 
+# === Claude Code (config interna) ===
+.claude/
+
+# === Documentos locales (no del proyecto) ===
+Anteproyecto*.pdf
+Fase actual*.md
+Módulo PROYECTO*.md
+
 # === Sistema ===
 .DS_Store
 Thumbs.db

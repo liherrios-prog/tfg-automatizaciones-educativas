@@ -96,12 +96,21 @@ Para guardar un workflow y compartirlo:
 
 | Workflow | Categoría | Descripción | Trigger |
 |----------|-----------|-------------|---------|
-| Email Masivo | Comunicaciones | Lee una lista de destinatarios de una hoja de Google Sheets y envía un email personalizado a cada uno con el nombre, curso y el mensaje definido en una plantilla. | Manual (botón ejecutar) |
-| Google Forms | Comunicaciones | Recibe las respuestas de un formulario de Google a través de un webhook, procesa los datos y los registra en una hoja de Google Sheets organizada por fecha y asignatura. | Webhook (se dispara automáticamente al recibir una respuesta) |
-| Recordatorio Reuniones | Gestión académica | Consulta el calendario de Google del profesor cada lunes por la mañana y envía un email con el listado de reuniones programadas para esa semana. Si no hay reuniones, envía un aviso indicándolo. | Programado (cron: lunes a las 8:00) |
-| Control Asistencia | Gestión académica | Recibe los datos de asistencia a través de un webhook (alumno, fecha, estado y asignatura) y los registra en una hoja de Google Sheets. Pensado para integrarse con un formulario o una aplicación que envíe los datos. | Webhook (se dispara al recibir datos de asistencia) |
-| Consolidar Notas | Gestión académica | Lee las notas de los alumnos de una hoja de Google Sheets, calcula la media de cada alumno y genera una hoja resumen con las medias y un listado de alumnos con alguna asignatura suspensa. | Manual (botón ejecutar) |
-| Informe Asistencia | Gestión académica | Recopila los registros de asistencia del mes anterior, calcula el porcentaje de asistencia por alumno y genera un informe resumen que se envía por email al profesor. | Programado (cron: día 1 de cada mes a las 9:00) |
+| 01 - Email Masivo | Comunicaciones | Lee una lista de destinatarios de una hoja de Google Sheets y envía un email personalizado a cada uno con el nombre, curso y el mensaje definido en una plantilla. | Manual (botón ejecutar) |
+| 02 - Google Forms | Comunicaciones | Recibe las respuestas de un formulario de Google a través de un webhook, procesa los datos y los registra en una hoja de Google Sheets organizada por fecha y asignatura. | Webhook (automático al recibir respuesta) |
+| 03 - Recordatorio Reuniones | Gestión académica | Consulta el calendario cada lunes por la mañana y envía un email con el listado de reuniones programadas para esa semana. | Programado (cron: lunes a las 9:00) |
+| 04 - Control Asistencia | Gestión académica | Recibe los datos de asistencia a través de un webhook y los registra en Google Sheets. Si el alumno está ausente, notifica a la familia. | Webhook (al recibir datos de asistencia) |
+| 05 - Consolidar Notas | Gestión académica | Lee las notas de los alumnos, calcula la media ponderada y genera una hoja resumen con calificaciones cualitativas. | Manual (botón ejecutar) |
+| 06 - Informe Asistencia | Gestión académica | Recopila los registros de asistencia del mes anterior, calcula el porcentaje por alumno y genera un informe resumen. | Programado (cron: día 1 de cada mes a las 8:00) |
+| 07 - Backup Automático | Mantenimiento | Exporta todos los workflows de n8n a Google Drive como copia de seguridad diaria. | Programado (cron: diario a las 2:00) |
+| 08 - Recordatorio Entregas | Gestión académica | Avisa a los alumnos cuando hay exámenes o entregas en los próximos 3 días. | Programado (cron: lunes a viernes a las 8:00) |
+| 09 - Inventario TIC | Gestión TIC | Registra préstamos y devoluciones de equipos informáticos vía webhook y mantiene un inventario actualizado. | Webhook (POST /inventario-tic) |
+| 10 - Cumpleaños Alumnos | Convivencia | Avisa al tutor cuando un alumno de su grupo cumple años para que pueda felicitarle en clase. | Programado (cron: lunes a viernes a las 8:30) |
+| 11 - Alerta Absentismo | Alertas | Detecta alumnos con más de 3 ausencias en el mes y envía un informe de alerta al jefe de estudios. | Programado (cron: viernes a las 14:00) |
+| 12 - Boletín Semanal | Comunicaciones | Genera un resumen semanal con eventos y avisos del tutor y lo envía a las familias de cada curso. | Programado (cron: viernes a las 16:00) |
+| 13 - Solicitud Material | Gestión de recursos | Registra solicitudes de material vía webhook. Las urgentes se notifican inmediatamente al coordinador. | Webhook (POST /solicitud-material) |
+| 14 - Guardias y Sustituciones | Gestión de personal | Asigna sustitutos automáticamente consultando el cuadrante de guardias cuando un profesor comunica su ausencia. | Webhook (POST /ausencia-profesor) |
+| 15 - Encuesta Satisfacción | Calidad | Envía encuestas de satisfacción mensuales a las familias y registra cada envío para seguimiento. | Programado (cron: día 1 de cada mes a las 10:00) |
 
 ### Parar el sistema
 

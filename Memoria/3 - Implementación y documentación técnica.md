@@ -286,6 +286,120 @@ Este workflow tiene un enfoque diferente al resto: no resuelve un problema admin
 
 **Decisión de diseño**: Este workflow demuestra que las automatizaciones no tienen que ser solo administrativas. Un pequeño detalle como felicitar a un alumno puede mejorar mucho el clima del aula, y automatizarlo asegura que no se olvide ningún cumpleaños.
 
+### 3.1.6 Fase 6: Workflows de alertas, gestión de recursos, personal y calidad
+
+En esta última fase de desarrollo he creado cinco workflows adicionales que llevan el proyecto un paso más allá: el sistema ya no solo ejecuta tareas mecánicas, sino que también detecta problemas de forma proactiva, gestiona recursos del centro, coordina sustituciones de profesores y recoge feedback de las familias.
+
+#### 11 - Alerta de Absentismo Acumulado
+
+**Categoría:** Alertas / Gestión académica
+
+Este workflow es diferente a los anteriores porque no se limita a ejecutar una tarea: analiza datos y toma una decisión. Cada viernes revisa los registros de asistencia del mes en curso, detecta los alumnos que acumulan más de 3 ausencias y envía un informe de alerta al jefe de estudios.
+
+**Flujo de ejecución:**
+
+1. **Schedule Trigger (viernes a las 14:00)**: La expresión cron es `0 14 * * 5`. Se ejecuta los viernes por la tarde para que el jefe de estudios tenga el informe antes de terminar la semana y pueda actuar el lunes.
+
+2. **Google Sheets (Leer registros de asistencia)**: Lee la misma hoja que alimenta el workflow 04, lo que demuestra que los workflows pueden compartir fuentes de datos sin conflictos.
+
+3. **Code (Detectar absentismo)**: Filtra los registros del mes en curso, agrupa por alumno, cuenta las ausencias y calcula el porcentaje de asistencia. Solo pasan al siguiente nodo los alumnos que superan el umbral de 3 faltas.
+
+4. **IF (¿Hay alumnos en alerta?)**: Si no hay nadie por encima del umbral, el workflow termina sin enviar nada. El jefe de estudios solo recibe correo cuando hay un problema real.
+
+5. **Code (Preparar informe)**: Genera un informe formateado con una tabla de alumnos, sus ausencias y porcentajes.
+
+6. **Send Email**: Envía el informe al jefe de estudios con un asunto que incluye el número de alumnos en alerta.
+
+**Decisión de diseño**: El umbral de 3 ausencias es configurable en el código. He elegido 3 porque es el número que la mayoría de centros usa como indicador de riesgo de absentismo escolar.
+
+#### 12 - Boletín Semanal para Familias
+
+**Categoría:** Comunicaciones educativas
+
+Cada viernes por la tarde genera un boletín con las novedades del curso (próximos eventos, avisos del tutor) y lo envía por email a las familias de cada grupo. El tutor solo tiene que rellenar una hoja de cálculo con los avisos de la semana.
+
+**Flujo de ejecución:**
+
+1. **Schedule Trigger (viernes a las 16:00)**: Se ejecuta al final de la jornada escolar para que las familias reciban el boletín antes del fin de semana.
+
+2. **Google Sheets (Leer boletines por curso)**: Cada fila de la hoja corresponde a un curso, con sus eventos y avisos.
+
+3. **IF (Tiene email de grupo)**: Filtra cursos sin email configurado.
+
+4. **Code (Componer boletín)**: Genera el cuerpo del email con los eventos de la próxima semana y los avisos del tutor. Calcula automáticamente las fechas.
+
+5. **Send Email**: Envía el boletín personalizado al email de grupo de cada curso.
+
+#### 13 - Solicitud de Material y Recursos
+
+**Categoría:** Gestión de recursos
+
+Permite a los profesores solicitar material (fotocopias, laboratorio, aulas especiales) mediante un webhook. La solicitud se registra en Google Sheets y, si es urgente, se notifica inmediatamente al coordinador.
+
+**Flujo de ejecución:**
+
+1. **Webhook (POST /solicitud-material)**: Recibe la solicitud con campos: profesor, tipo, descripción y urgencia (baja/media/alta).
+
+2. **Set (Preparar registro)**: Normaliza los datos y añade fecha, hora y estado "pendiente".
+
+3. **Google Sheets (Guardar solicitud)**: Registra la solicitud en la hoja de seguimiento.
+
+4. **IF (¿Es urgente?)**: Si la urgencia es "alta", ejecuta la notificación. Si no, el workflow termina con la confirmación.
+
+5. **Send Email (Notificar coordinador)**: Solo para solicitudes urgentes.
+
+6. **Respond to Webhook**: Devuelve confirmación JSON al profesor.
+
+**Decisión de diseño**: Solo las solicitudes urgentes generan notificación inmediata. Las de urgencia media o baja quedan en la hoja para revisión periódica, evitando saturar al coordinador con emails.
+
+#### 14 - Gestión de Guardias y Sustituciones
+
+**Categoría:** Gestión de personal docente
+
+Este es el workflow más complejo del proyecto. Cuando un profesor comunica su ausencia, el sistema consulta automáticamente el cuadrante de guardias del día, busca un sustituto disponible para esa franja horaria y notifica tanto al sustituto como a jefatura de estudios.
+
+**Flujo de ejecución:**
+
+1. **Webhook (POST /ausencia-profesor)**: Recibe la ausencia con: profesor, motivo y franja horaria.
+
+2. **Set (Preparar datos)**: Calcula automáticamente el día de la semana actual para buscar en el cuadrante.
+
+3. **Google Sheets (Leer cuadrante de guardias)**: Lee la hoja con el cuadrante de guardias del centro.
+
+4. **Code (Buscar sustituto)**: Cruza el día y la franja horaria con el cuadrante para encontrar al profesor de guardia disponible.
+
+5. **Google Sheets (Registrar ausencia)**: Guarda el registro con el sustituto asignado.
+
+6. **IF (¿Sustituto encontrado?)**: Si hay profesor de guardia, va a notificarle. Si no, avisa a jefatura.
+
+7. **Send Email (Notificar sustituto)** o **Send Email (Avisar jefatura)**: Según si se encontró sustituto o no.
+
+8. **Respond to Webhook**: Devuelve al profesor ausente los datos del sustituto asignado.
+
+**Decisión de diseño**: He separado las ramas de "sustituto encontrado" y "sin sustituto" con respuestas webhook distintas. Así el profesor sabe inmediatamente si alguien le cubre o si tiene que esperar a que jefatura lo gestione.
+
+#### 15 - Encuesta de Satisfacción Automatizada
+
+**Categoría:** Calidad y mejora continua
+
+El primer día de cada mes envía automáticamente un enlace a una encuesta de Google Forms a todas las familias. Registra cada envío en una hoja de log para seguimiento.
+
+**Flujo de ejecución:**
+
+1. **Schedule Trigger (día 1 de cada mes a las 10:00)**: La expresión cron es `0 10 1 * *`.
+
+2. **Google Sheets (Leer familias)**: Lee el listado de familias con sus emails y cursos.
+
+3. **IF (Tiene email)**: Filtra familias sin email.
+
+4. **Code (Componer email)**: Genera un email personalizado con el enlace a la encuesta, el nombre de la familia y el mes correspondiente.
+
+5. **Send Email**: Envía la encuesta a cada familia.
+
+6. **Google Sheets (Registrar envío)**: Guarda un log de cada envío con fecha, familia, curso y email.
+
+**Decisión de diseño**: Este workflow demuestra que las automatizaciones pueden contribuir a la mejora continua del centro. Las encuestas de satisfacción son obligatorias en muchos sistemas de calidad educativa, y automatizar su distribución garantiza que se envían puntualmente sin depender de que alguien se acuerde.
+
 ## 3.2 Documentación técnica
 
 ### 3.2.1 Estructura del proyecto
@@ -330,7 +444,7 @@ proyecto/
 
 ### 3.2.4 Workflows implementados
 
-La siguiente tabla resume los diez workflows desarrollados en el proyecto:
+La siguiente tabla resume los quince workflows desarrollados en el proyecto:
 
 | Workflow | Categoría | Descripción breve | Trigger | Nodos principales |
 |----------|-----------|-------------------|---------|-------------------|
@@ -344,5 +458,10 @@ La siguiente tabla resume los diez workflows desarrollados en el proyecto:
 | 08 - Recordatorio de Entregas y Exámenes | Gestión académica | Avisa a los alumnos 3 días antes de exámenes y entregas de trabajos | Schedule Trigger (`0 8 * * 1-5`) | Google Sheets, Code, IF, Send Email |
 | 09 - Gestión de Inventario TIC | Gestión TIC | Registra préstamos y devoluciones de equipos informáticos vía webhook | Webhook POST `/inventario-tic` | IF, Google Sheets x2, Code |
 | 10 - Notificación de Cumpleaños | Convivencia | Avisa al tutor cuando un alumno de su grupo cumple años | Schedule Trigger (`30 8 * * 1-5`) | Google Sheets, Code, IF, Send Email |
+| 11 - Alerta de Absentismo Acumulado | Alertas | Detecta alumnos con más de 3 ausencias en el mes y alerta al jefe de estudios | Schedule Trigger (`0 14 * * 5`) | Google Sheets, Code, IF, Code, Send Email |
+| 12 - Boletín Semanal para Familias | Comunicaciones | Genera un resumen semanal con eventos y avisos y lo envía a las familias | Schedule Trigger (`0 16 * * 5`) | Google Sheets, IF, Code, Send Email |
+| 13 - Solicitud de Material y Recursos | Gestión de recursos | Registra solicitudes de material vía webhook y notifica al coordinador si es urgente | Webhook POST `/solicitud-material` | Set, Google Sheets, IF, Send Email, Respond to Webhook |
+| 14 - Gestión de Guardias y Sustituciones | Gestión de personal | Asigna sustitutos automáticamente consultando el cuadrante de guardias | Webhook POST `/ausencia-profesor` | Set, Google Sheets, Code, Google Sheets, IF, Send Email x2, Respond to Webhook |
+| 15 - Encuesta de Satisfacción Automatizada | Calidad | Envía encuestas mensuales a las familias y registra los envíos | Schedule Trigger (`0 10 1 * *`) | Google Sheets, IF, Code, Send Email, Google Sheets |
 
 Todos los workflows se exportan en formato JSON y se almacenan en la carpeta `workflows/` del proyecto. Esto permite importarlos en cualquier instancia de n8n sin necesidad de recrearlos manualmente, lo que refuerza el objetivo de portabilidad del proyecto.

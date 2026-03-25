@@ -1,0 +1,155 @@
+{
+  "name": "12 - Boletin Semanal para Familias",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Boletin Semanal para Familias\n\nCada viernes a las 16:00 genera un resumen semanal con las novedades del curso y lo envia por email a las familias. Incluye proximos eventos, avisos del tutor y un mensaje personalizado por curso.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Crear hoja \"Boletines\" con columnas: curso, email_grupo, eventos_semana, avisos_tutor\n3. Rellenar la hoja cada semana con los avisos (puede hacerlo el tutor o secretaria)\n\n**Frecuencia:** Semanal (viernes a las 16:00)\n\n**Categoria:** Comunicaciones educativas",
+        "height": 320,
+        "width": 420,
+        "color": 4
+      },
+      "id": "sticky-12-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 40]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 16 * * 5"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0012-4000-8000-000000000001",
+      "name": "Cada viernes a las 16h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400],
+      "notes": "Se ejecuta los viernes por la tarde para que las familias reciban el boletin antes del fin de semana y puedan preparar la siguiente semana."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0012-4000-8000-000000000002",
+      "name": "Leer Boletines por Curso",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [460, 400],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Lee la hoja con los avisos y eventos de cada curso para esta semana. Cada fila es un curso diferente con su email de grupo."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.email_grupo }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "a1b2c3d4-0012-4000-8000-000000000003",
+      "name": "Tiene email de grupo",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 400],
+      "notes": "Filtra cursos que no tienen email de grupo configurado para evitar envios fallidos."
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst curso = item.curso || 'Sin curso';\nconst eventos = item.eventos_semana || 'No hay eventos programados para la proxima semana.';\nconst avisos = item.avisos_tutor || '';\n\nconst hoy = new Date();\nconst lunes = new Date(hoy);\nlunes.setDate(hoy.getDate() + 3);\nconst viernes = new Date(lunes);\nviernes.setDate(lunes.getDate() + 4);\n\nconst formatFecha = (d) => `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;\nconst semana = `${formatFecha(lunes)} al ${formatFecha(viernes)}`;\n\nlet cuerpo = `BOLETIN SEMANAL - ${curso}\\n`;\ncuerpo += `Semana del ${semana}\\n`;\ncuerpo += `${'='.repeat(50)}\\n\\n`;\ncuerpo += `PROXIMOS EVENTOS Y ACTIVIDADES:\\n${eventos}\\n\\n`;\n\nif (avisos) {\n  cuerpo += `AVISOS DEL TUTOR/A:\\n${avisos}\\n\\n`;\n}\n\ncuerpo += `---\\nEste boletin se genera automaticamente cada viernes.\\nSi tiene alguna consulta, responda a este email o contacte con el tutor/a de ${curso}.`;\n\nreturn [{ json: {\n  email_grupo: item.email_grupo,\n  asunto: `Boletin semanal ${curso} - Semana ${semana}`,\n  cuerpo,\n  curso\n}}];"
+      },
+      "id": "a1b2c3d4-0012-4000-8000-000000000004",
+      "name": "Componer Boletin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "notes": "Genera el cuerpo del boletin con los eventos de la proxima semana y los avisos del tutor. Calcula automaticamente las fechas de la semana siguiente."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email_grupo }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "text",
+        "message": "={{ $json.cuerpo }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0012-4000-8000-000000000005",
+      "name": "Enviar Boletin",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1120, 300],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": ""
+        }
+      },
+      "notes": "Envia el boletin al email de grupo del curso. Cada curso recibe su propio boletin personalizado."
+    }
+  ],
+  "connections": {
+    "Cada viernes a las 16h": {
+      "main": [
+        [{ "node": "Leer Boletines por Curso", "type": "main", "index": 0 }]
+      ]
+    },
+    "Leer Boletines por Curso": {
+      "main": [
+        [{ "node": "Tiene email de grupo", "type": "main", "index": 0 }]
+      ]
+    },
+    "Tiene email de grupo": {
+      "main": [
+        [{ "node": "Componer Boletin", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Componer Boletin": {
+      "main": [
+        [{ "node": "Enviar Boletin", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "educativo" },
+    { "name": "comunicaciones" },
+    { "name": "familias" }
+  ]
+}

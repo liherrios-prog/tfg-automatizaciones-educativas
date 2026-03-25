@@ -32,6 +32,11 @@ Solución portátil basada en **Docker** y **n8n** que automatiza tareas repetit
 | 08 | Recordatorio de entregas y exámenes | Avisa a los alumnos 3 días antes de exámenes y entregas |
 | 09 | Gestión de inventario TIC | Registro de préstamos/devoluciones de equipos informáticos |
 | 10 | Notificación de cumpleaños | Avisa al tutor cuando un alumno de su grupo cumple años |
+| 11 | Alerta de absentismo acumulado | Detecta alumnos con +3 ausencias y alerta al jefe de estudios |
+| 12 | Boletín semanal para familias | Resumen automático con eventos y avisos cada viernes |
+| 13 | Solicitud de material/recursos | Registro vía webhook + notificación urgente al coordinador |
+| 14 | Gestión de guardias/sustituciones | Asigna sustitutos automáticamente desde el cuadrante de guardias |
+| 15 | Encuesta de satisfacción | Envío mensual de encuestas a familias con registro de seguimiento |
 
 Todos los workflows están en la carpeta `workflows/` como archivos JSON listos para importar en n8n.
 
@@ -129,7 +134,12 @@ scripts\stop.bat
 │   ├── 07-backup-automatico-datos.json
 │   ├── 08-recordatorio-entregas-examenes.json
 │   ├── 09-gestion-inventario-tic.json
-│   └── 10-notificacion-cumpleanos-alumnos.json
+│   ├── 10-notificacion-cumpleanos-alumnos.json
+│   ├── 11-alerta-absentismo-acumulado.json
+│   ├── 12-boletin-semanal-familias.json
+│   ├── 13-solicitud-material-recursos.json
+│   ├── 14-gestion-guardias-sustituciones.json
+│   └── 15-encuesta-satisfaccion.json
 ├── n8n-data/                   # Datos persistentes (se crea automáticamente)
 └── Memoria/                    # Documentación del proyecto (7 capítulos)
 ```
