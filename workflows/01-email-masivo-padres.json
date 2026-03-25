@@ -1,0 +1,183 @@
+{
+  "name": "01 - Email Masivo a Padres/Tutores",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Email Masivo a Padres/Tutores\n\nEste workflow permite enviar comunicaciones personalizadas a todas las familias de un curso o del centro completo, leyendo los datos de una hoja de Google Sheets.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets\n2. Configurar credenciales SMTP (Gmail, Outlook...)\n3. Crear la hoja con columnas: nombre_alumno, email_padre, curso\n4. Personalizar la plantilla del mensaje en el nodo \"Preparar Mensaje\"\n\n**Categoría:** Comunicaciones educativas",
+        "height": 320,
+        "width": 400,
+        "color": 4
+      },
+      "id": "sticky-01-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, -20]
+    },
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Inicio Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 420],
+      "notes": "Se lanza manualmente cada vez que el centro necesita enviar una comunicacion. Ideal para circulares, avisos de excursiones, cambios de horario o cualquier informacion que deba llegar a las familias."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000002",
+      "name": "Leer Lista de Padres",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [480, 420],
+      "notes": "Lee la hoja de calculo donde estan los datos de contacto de las familias. La hoja debe tener al menos tres columnas: nombre_alumno (nombre completo del estudiante), email_padre (direccion de correo del padre, madre o tutor legal) y curso (grupo al que pertenece, por ejemplo 1ESO-A). Es importante que los emails esten bien escritos para evitar rebotes.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "condition-email",
+              "leftValue": "={{ $json.email_padre }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000003",
+      "name": "Filtrar Emails Validos",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [700, 420],
+      "notes": "Descarta las filas donde el campo de email este vacio. Esto puede pasar porque aun no se ha registrado el contacto de alguna familia, o porque hay filas en blanco al final de la hoja. Sin este filtro, el nodo de envio de email daria error al intentar enviar a una direccion vacia."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-asunto",
+              "name": "asunto",
+              "value": "=Informacion importante - {{ $json.curso }}",
+              "type": "string"
+            },
+            {
+              "id": "set-cuerpo",
+              "name": "cuerpo",
+              "value": "=Estimada familia de {{ $json.nombre_alumno }},\n\nLes escribimos desde el centro educativo para informarles de lo siguiente:\n\n[ESCRIBIR AQUI EL CONTENIDO DEL MENSAJE]\n\nSi tienen alguna duda, no duden en ponerse en contacto con nosotros a traves de los canales habituales.\n\nUn cordial saludo,\nEquipo Educativo",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000004",
+      "name": "Preparar Mensaje",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [920, 420],
+      "notes": "Aqui se construye el email personalizado para cada familia. El asunto incluye el curso del alumno para que las familias lo identifiquen rapido en su bandeja de entrada. El cuerpo usa una plantilla con el nombre del alumno, lo que hace que cada email se sienta personal aunque se envien decenas a la vez. Para adaptar el mensaje, solo hay que modificar el texto entre los corchetes."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email_padre }}",
+        "subject": "={{ $json.asunto }}",
+        "message": "={{ $json.cuerpo }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000005",
+      "name": "Enviar Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1140, 420],
+      "notes": "Envia el email personalizado a cada padre o tutor. Requiere tener configuradas las credenciales SMTP del servidor de correo. Para Gmail, hay que habilitar el acceso de aplicaciones menos seguras o crear una contrasena de aplicacion. El envio es individual por alumno, asi cada familia recibe su propio email con el nombre de su hijo/a.",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Inicio Manual": {
+      "main": [
+        [
+          {
+            "node": "Leer Lista de Padres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Lista de Padres": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Emails Validos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Emails Validos": {
+      "main": [
+        [
+          {
+            "node": "Preparar Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Mensaje": {
+      "main": [
+        [
+          {
+            "node": "Enviar Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "name": "Comunicaciones"
+    },
+    {
+      "name": "Familias"
+    }
+  ],
+  "meta": {
+    "instanceId": "n8n-educativo"
+  }
+}

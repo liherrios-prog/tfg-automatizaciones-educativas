@@ -1,0 +1,230 @@
+{
+  "name": "05 - Consolidar Notas del Trimestre",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Consolidar Notas del Trimestre\n\nEste workflow se ejecuta manualmente al final de cada trimestre. Lee las notas de varias asignaturas desde hojas de calculo diferentes, las combina por alumno, calcula la media ponderada y genera un resumen con las calificaciones finales.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Configurar las hojas de origen en los nodos de lectura\n3. Ajustar los pesos de la media ponderada si es necesario\n4. Cambiar el email del jefe de estudios\n\n**Pesos por defecto:** Examen 50% | Trabajo 30% | Participacion 20%\n\n**Categoría:** Gestion academica",
+        "height": 350,
+        "width": 420,
+        "color": 5
+      },
+      "id": "sticky-05-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, -50]
+    },
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0005-4000-8000-000000000001",
+      "name": "Inicio Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 420],
+      "notes": "Se ejecuta manualmente al final de cada periodo de evaluacion. El profesor o el jefe de estudios pulsa Execute Workflow cuando todas las notas estan introducidas en las hojas de calculo. Es importante verificar que las notas estan completas antes de ejecutar, porque si falta alguna nota se calculara como 0."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000002",
+      "name": "Leer Notas Hoja 1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [480, 320],
+      "notes": "Lee las notas de la primera asignatura o evaluacion parcial. La hoja debe tener como minimo estas columnas: alumno (nombre completo), nota_examen (nota del examen sobre 10), nota_trabajo (nota de trabajos y tareas sobre 10) y nota_participacion (valoracion de la participacion en clase sobre 10). Se pueden anadir mas nodos de lectura si hay mas asignaturas.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000003",
+      "name": "Leer Notas Hoja 2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [480, 520],
+      "notes": "Lee las notas de la segunda asignatura o evaluacion parcial. Misma estructura de columnas que la Hoja 1. Si el centro tiene mas asignaturas que consolidar, se duplica este nodo y se conecta al nodo Merge como una entrada adicional.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "alumno",
+              "field2": "alumno"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000004",
+      "name": "Combinar por Alumno",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [700, 420],
+      "notes": "Combina los datos de ambas hojas usando el nombre del alumno como clave de union. Asi, todas las notas de un mismo alumno quedan en un unico registro, sin importar de que hoja vengan. Es parecido a hacer un JOIN en SQL: busca coincidencias en el campo alumno y junta los datos de ambas filas."
+    },
+    {
+      "parameters": {
+        "jsCode": "const alumnos = $input.all();\nconst resultados = [];\n\nfor (const item of alumnos) {\n  const d = item.json;\n  \n  // Pesos de la media ponderada (ajustar segun criterios del centro)\n  // Estos valores definen cuanto pesa cada componente en la nota final\n  const pesoExamen = 0.5;        // 50% examenes\n  const pesoTrabajo = 0.3;       // 30% trabajos y tareas\n  const pesoParticipacion = 0.2; // 20% participacion en clase\n  \n  // parseFloat convierte el texto a numero, || 0 pone un 0 si no hay nota\n  const notaExamen = parseFloat(d.nota_examen) || 0;\n  const notaTrabajo = parseFloat(d.nota_trabajo) || 0;\n  const notaParticipacion = parseFloat(d.nota_participacion) || 0;\n  \n  // Calculo de la media ponderada\n  const media = (notaExamen * pesoExamen) + (notaTrabajo * pesoTrabajo) + (notaParticipacion * pesoParticipacion);\n  const mediaRedondeada = Math.round(media * 100) / 100;\n  \n  // Asignacion de calificacion textual segun la escala del sistema educativo\n  let calificacion = 'Insuficiente'; // menos de 5\n  if (media >= 9) calificacion = 'Sobresaliente';\n  else if (media >= 7) calificacion = 'Notable';\n  else if (media >= 6) calificacion = 'Bien';\n  else if (media >= 5) calificacion = 'Suficiente';\n  \n  resultados.push({\n    json: {\n      alumno: d.alumno,\n      nota_examen: notaExamen,\n      nota_trabajo: notaTrabajo,\n      nota_participacion: notaParticipacion,\n      media_final: mediaRedondeada,\n      calificacion: calificacion,\n      aprobado: media >= 5 ? 'Si' : 'No'\n    }\n  });\n}\n\nreturn resultados;"
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "Calcular Medias",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 420],
+      "notes": "Este es el nodo mas importante del workflow. Recorre todos los alumnos y para cada uno calcula la media ponderada de sus notas. Los pesos se pueden ajustar facilmente cambiando las variables pesoExamen, pesoTrabajo y pesoParticipacion (deben sumar 1.0). Tambien asigna una calificacion textual siguiendo la escala oficial del sistema educativo espanol: Insuficiente (0-4.99), Suficiente (5-5.99), Bien (6-6.99), Notable (7-8.99) y Sobresaliente (9-10).",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000006",
+      "name": "Guardar Resumen Notas",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1160, 320],
+      "notes": "Escribe los resultados consolidados en una nueva hoja de Google Sheets. Cada fila contiene: alumno, las tres notas parciales, la media final, la calificacion textual y si ha aprobado o no. Esta hoja sirve como acta de notas del trimestre y se puede compartir con el equipo educativo.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "=jefe-estudios@centro.edu",
+        "subject": "=Notas consolidadas del trimestre - {{ $now.format('DD/MM/YYYY') }}",
+        "message": "=Buenos dias,\n\nSe han consolidado las notas del trimestre correctamente.\n\nResumen del proceso:\n- Total de alumnos procesados: {{ $input.all().length }}\n- Fecha de consolidacion: {{ $now.format('DD/MM/YYYY HH:mm') }}\n\nLas notas detalladas estan disponibles en la hoja de calculo compartida.\n\nUn saludo,\nSistema de Automatizacion Educativa",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000007",
+      "name": "Notificar Jefe Estudios",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1160, 520],
+      "notes": "Avisa al jefe de estudios de que las notas se han consolidado. Asi sabe que ya puede revisar la hoja con los resultados finales. Cambiar jefe-estudios@centro.edu por el email real.",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Inicio Manual": {
+      "main": [
+        [
+          {
+            "node": "Leer Notas Hoja 1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Leer Notas Hoja 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Notas Hoja 1": {
+      "main": [
+        [
+          {
+            "node": "Combinar por Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Notas Hoja 2": {
+      "main": [
+        [
+          {
+            "node": "Combinar por Alumno",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Combinar por Alumno": {
+      "main": [
+        [
+          {
+            "node": "Calcular Medias",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Medias": {
+      "main": [
+        [
+          {
+            "node": "Guardar Resumen Notas",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notificar Jefe Estudios",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "name": "Gestion"
+    },
+    {
+      "name": "Evaluacion"
+    }
+  ],
+  "meta": {
+    "instanceId": "n8n-educativo"
+  }
+}

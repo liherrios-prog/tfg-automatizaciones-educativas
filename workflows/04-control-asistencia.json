@@ -1,0 +1,249 @@
+{
+  "name": "04 - Control de Asistencia Diario",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Control de Asistencia Diario\n\nRecibe registros de asistencia a traves de un webhook y los guarda en Google Sheets. Si un alumno esta ausente, notifica automaticamente a su familia por email.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Crear una aplicacion o formulario que envie los datos al webhook\n3. Formato del POST: { alumno, curso, presente (true/false), motivo_ausencia }\n\n**URL del webhook:** http://localhost:5678/webhook/asistencia\n\n**Categoría:** Gestion academica",
+        "height": 330,
+        "width": 420,
+        "color": 2
+      },
+      "id": "sticky-04-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, -40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "asistencia",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000001",
+      "name": "Webhook Asistencia",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "asistencia",
+      "notes": "Recibe los datos de asistencia mediante una peticion POST. El modo lastNode significa que la respuesta HTTP no se devuelve hasta que el workflow termine, lo que permite confirmar al remitente que el registro se ha procesado correctamente. Los datos esperados son: alumno (nombre del estudiante), curso (por ejemplo 2ESO-B), presente (true o false) y opcionalmente motivo_ausencia.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-alumno",
+              "name": "alumno",
+              "value": "={{ $json.body.alumno }}",
+              "type": "string"
+            },
+            {
+              "id": "set-curso",
+              "name": "curso",
+              "value": "={{ $json.body.curso }}",
+              "type": "string"
+            },
+            {
+              "id": "set-presente",
+              "name": "presente",
+              "value": "={{ $json.body.presente }}",
+              "type": "string"
+            },
+            {
+              "id": "set-motivo",
+              "name": "motivo_ausencia",
+              "value": "={{ $json.body.motivo_ausencia || 'Sin especificar' }}",
+              "type": "string"
+            },
+            {
+              "id": "set-fecha",
+              "name": "fecha",
+              "value": "={{ $now.format('DD/MM/YYYY') }}",
+              "type": "string"
+            },
+            {
+              "id": "set-hora",
+              "name": "hora",
+              "value": "={{ $now.format('HH:mm') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000002",
+      "name": "Preparar Registro",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 400],
+      "notes": "Estructura los datos recibidos del webhook y anade automaticamente la fecha y hora del registro. El operador || en motivo_ausencia proporciona un valor por defecto cuando no se ha indicado motivo, evitando que quede un campo vacio en la hoja de calculo. La hora se registra para poder hacer seguimiento de a que hora se paso lista."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000003",
+      "name": "Registrar en Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [700, 400],
+      "notes": "Guarda el registro de asistencia como una nueva fila en la hoja de calculo. Cada fila contiene: alumno, curso, presente, motivo_ausencia, fecha y hora. Con el tiempo, esta hoja se convierte en un registro historico completo de la asistencia, que se puede usar despues para generar informes mensuales (ver workflow 06).",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "condition-ausente",
+              "leftValue": "={{ $json.presente }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "Alumno Ausente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [920, 400],
+      "notes": "Comprueba si el alumno esta ausente comparando el campo presente con el texto false. Si esta ausente, sigue por la rama superior para notificar a la familia. Si esta presente, sigue por la rama inferior directamente a la respuesta de confirmacion. La comparacion se hace como string porque el webhook puede enviar el booleano como texto."
+    },
+    {
+      "parameters": {
+        "sendTo": "=familia-{{ $json.alumno }}@centro.edu",
+        "subject": "=Aviso de ausencia - {{ $json.alumno }}",
+        "message": "=Estimada familia,\n\nLes comunicamos que el alumno/a {{ $json.alumno }} del curso {{ $json.curso }} no ha asistido a clase el dia {{ $json.fecha }} a las {{ $json.hora }}.\n\nMotivo registrado: {{ $json.motivo_ausencia }}\n\nSi la ausencia es justificada, les rogamos que contacten con el centro para comunicar el motivo.\n\nUn cordial saludo,\nEquipo Educativo",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000005",
+      "name": "Notificar Familia",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1140, 340],
+      "notes": "Envia un aviso automatico a la familia cuando se detecta una ausencia. En un entorno real, el email del padre o tutor se obtendria de una base de datos de alumnos (otra hoja de calculo con los contactos). Aqui se usa un email de ejemplo con el nombre del alumno para ilustrar como funcionaria. Tambien seria posible enviar un SMS en vez de email usando otro nodo.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok', mensaje: 'Asistencia registrada correctamente', alumno: $json.alumno, fecha: $json.fecha }) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000006",
+      "name": "Respuesta OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1140, 480],
+      "notes": "Devuelve una respuesta JSON confirmando que la asistencia se ha registrado correctamente. Esta respuesta la recibe la aplicacion o formulario que envio los datos, para que pueda mostrar un mensaje de confirmacion al profesor. El formato JSON facilita que cualquier aplicacion procese la respuesta."
+    }
+  ],
+  "connections": {
+    "Webhook Asistencia": {
+      "main": [
+        [
+          {
+            "node": "Preparar Registro",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Registro": {
+      "main": [
+        [
+          {
+            "node": "Registrar en Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar en Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Alumno Ausente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alumno Ausente?": {
+      "main": [
+        [
+          {
+            "node": "Notificar Familia",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respuesta OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar Familia": {
+      "main": [
+        [
+          {
+            "node": "Respuesta OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "name": "Gestion"
+    },
+    {
+      "name": "Asistencia"
+    }
+  ],
+  "meta": {
+    "instanceId": "n8n-educativo"
+  }
+}

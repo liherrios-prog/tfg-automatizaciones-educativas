@@ -1,0 +1,118 @@
+{
+  "name": "07 - Backup Automatico de Datos n8n",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Backup Automatico de Datos n8n\n\nRealiza una copia de seguridad automatica de los workflows de n8n cada dia a las 2:00 AM. Exporta todos los workflows activos y los guarda como archivo JSON en Google Drive.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Drive\n2. Crear una carpeta en Google Drive para los backups\n3. Poner el ID de la carpeta en el nodo \"Subir Backup\"\n\n**Frecuencia:** Diaria a las 02:00\n\n**Categoria:** Mantenimiento y seguridad",
+        "height": 310,
+        "width": 420,
+        "color": 5
+      },
+      "id": "sticky-07-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 40]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0007-4000-8000-000000000001",
+      "name": "Cada dia a las 2AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [240, 400],
+      "notes": "Se ejecuta automaticamente cada dia a las 2 de la madrugada, cuando el sistema no tiene carga. La hora se puede cambiar en el campo de expresion cron. Formato: minuto hora dia mes dia_semana."
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:5678/api/v1/workflows",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "a1b2c3d4-0007-4000-8000-000000000002",
+      "name": "Obtener Workflows",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [480, 400],
+      "notes": "Llama a la API interna de n8n para obtener la lista completa de todos los workflows configurados. Necesita autenticacion con un API key de n8n que se configura en Settings > API. El resultado incluye todos los nodos, conexiones y configuracion de cada workflow.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const workflows = $input.first().json.body?.data || [];\nconst fecha = new Date().toISOString().split('T')[0];\nconst hora = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');\n\nconst backup = {\n  fecha_backup: `${fecha}_${hora}`,\n  total_workflows: workflows.length,\n  workflows: workflows\n};\n\nconst contenido = JSON.stringify(backup, null, 2);\n\nreturn [{\n  json: {\n    nombre_archivo: `backup-n8n-${fecha}.json`,\n    contenido: contenido,\n    total: workflows.length,\n    fecha: fecha\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0007-4000-8000-000000000003",
+      "name": "Preparar Backup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 400],
+      "notes": "Toma todos los workflows obtenidos de la API y los empaqueta en un unico archivo JSON con metadatos: fecha del backup, hora exacta y numero total de workflows. El nombre del archivo incluye la fecha para facilitar la organizacion cronologica de los backups.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ $json.nombre_archivo }}",
+        "folderId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0007-4000-8000-000000000004",
+      "name": "Subir Backup a Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [920, 400],
+      "notes": "Sube el archivo JSON del backup a una carpeta especifica de Google Drive. Cambiar el folderId por el ID de la carpeta de destino. Para obtener el ID, abrir la carpeta en Google Drive y copiar la ultima parte de la URL (despues de folders/).",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cada dia a las 2AM": {
+      "main": [
+        [{ "node": "Obtener Workflows", "type": "main", "index": 0 }]
+      ]
+    },
+    "Obtener Workflows": {
+      "main": [
+        [{ "node": "Preparar Backup", "type": "main", "index": 0 }]
+      ]
+    },
+    "Preparar Backup": {
+      "main": [
+        [{ "node": "Subir Backup a Drive", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    { "name": "Mantenimiento" },
+    { "name": "Seguridad" }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

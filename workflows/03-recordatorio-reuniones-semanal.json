@@ -1,0 +1,177 @@
+{
+  "name": "03 - Recordatorio Semanal de Reuniones",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Recordatorio Semanal de Reuniones\n\nCada lunes a las 9:00 de la manana, este workflow consulta el calendario de reuniones del centro y envia un resumen con las reuniones de esa semana al equipo educativo.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Crear la hoja con columnas: fecha, hora, tipo_reunion, asistentes, ubicacion\n3. El formato de fecha debe ser DD/MM/YYYY\n4. Activar el workflow para que se ejecute automaticamente\n\n**Categoría:** Comunicaciones / Gestion",
+        "height": 310,
+        "width": 420,
+        "color": 3
+      },
+      "id": "sticky-03-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, -30]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000001",
+      "name": "Cada Lunes 9AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 400],
+      "notes": "Se dispara automaticamente cada lunes a las 9:00 de la manana (hora de Madrid). La expresion cron 0 9 * * 1 significa: minuto 0, hora 9, cualquier dia del mes, cualquier mes, dia 1 de la semana (lunes). Si el centro prefiere recibir el resumen otro dia, basta con cambiar el ultimo numero (0=domingo, 1=lunes, ..., 5=viernes). Para que funcione, el workflow tiene que estar activado (boton de activacion en la esquina superior derecha)."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000002",
+      "name": "Leer Calendario Reuniones",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [480, 400],
+      "notes": "Lee la hoja de calculo que sirve como calendario de reuniones del centro. La hoja necesita cinco columnas: fecha (en formato DD/MM/YYYY), hora (por ejemplo 10:00), tipo_reunion (claustro, tutoria, departamento...), asistentes (quienes deben asistir) y ubicacion (sala de profesores, aula 3, etc.). Es importante mantener las fechas actualizadas para que el filtro funcione correctamente.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtenemos la fecha de hoy y calculamos el viernes de esta semana\nconst hoy = new Date();\nconst finSemana = new Date(hoy);\nfinSemana.setDate(hoy.getDate() + (5 - hoy.getDay())); // Viernes\n\nconst reuniones = $input.all();\nconst reunionesSemana = [];\n\n// Recorremos todas las reuniones y nos quedamos solo con las de esta semana\nfor (const item of reuniones) {\n  // Convertimos la fecha del formato DD/MM/YYYY a un objeto Date\n  const partes = item.json.fecha.split('/');\n  const fechaReunion = new Date(partes[2], partes[1] - 1, partes[0]);\n  \n  if (fechaReunion >= hoy && fechaReunion <= finSemana) {\n    reunionesSemana.push(item);\n  }\n}\n\n// Si no hay reuniones esta semana, devolvemos un mensaje informativo\nif (reunionesSemana.length === 0) {\n  return [{ json: { hay_reuniones: false, resumen: 'No hay reuniones programadas esta semana.' } }];\n}\n\n// Construimos el resumen con formato legible\nlet resumen = 'Reuniones de esta semana:\\n\\n';\nfor (const r of reunionesSemana) {\n  resumen += `- ${r.json.fecha} a las ${r.json.hora}\\n`;\n  resumen += `  Tipo: ${r.json.tipo_reunion}\\n`;\n  resumen += `  Lugar: ${r.json.ubicacion}\\n`;\n  resumen += `  Asistentes: ${r.json.asistentes}\\n\\n`;\n}\n\nreturn [{ json: { hay_reuniones: true, resumen: resumen, total: reunionesSemana.length } }];"
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Filtrar Reuniones Semana",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 400],
+      "notes": "Este nodo es el corazon del workflow. Coge todas las reuniones de la hoja de calculo y filtra solo las que caen entre hoy (lunes) y el viernes de esta semana. He corregido el parseo de fechas para que funcione bien con el formato espanol DD/MM/YYYY en vez de depender de new Date() directamente, que puede dar problemas con formatos europeos. Si no hay ninguna reunion, devuelve un flag para que el siguiente nodo sepa que no hace falta enviar email.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "condition-reuniones",
+              "leftValue": "={{ $json.hay_reuniones }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000004",
+      "name": "Hay Reuniones?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [920, 400],
+      "notes": "Comprueba si se encontraron reuniones para esta semana. Si hay_reuniones es true, sigue por la rama superior y envia el email. Si es false (no hay reuniones), el flujo simplemente termina sin enviar nada, para no molestar al equipo con un email vacio cada lunes."
+    },
+    {
+      "parameters": {
+        "sendTo": "=equipo-educativo@centro.edu",
+        "subject": "=Reuniones de la semana - {{ $now.format('DD/MM/YYYY') }}",
+        "message": "=Buenos dias,\n\nAqui tienen el resumen de reuniones programadas para esta semana:\n\n{{ $json.resumen }}\n\nTotal de reuniones: {{ $json.total }}\n\nRecuerden confirmar asistencia si es necesario.\n\nUn saludo,\nSistema de Automatizacion Educativa",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000005",
+      "name": "Enviar Resumen",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1140, 340],
+      "notes": "Envia el resumen semanal al equipo educativo. Cambiar equipo-educativo@centro.edu por el email real de la lista de distribucion del claustro o del grupo de profesores. Si se quiere enviar a personas concretas, se pueden poner sus emails separados por comas.",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cada Lunes 9AM": {
+      "main": [
+        [
+          {
+            "node": "Leer Calendario Reuniones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Calendario Reuniones": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Reuniones Semana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Reuniones Semana": {
+      "main": [
+        [
+          {
+            "node": "Hay Reuniones?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hay Reuniones?": {
+      "main": [
+        [
+          {
+            "node": "Enviar Resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "name": "Comunicaciones"
+    },
+    {
+      "name": "Gestion"
+    }
+  ],
+  "meta": {
+    "instanceId": "n8n-educativo"
+  }
+}

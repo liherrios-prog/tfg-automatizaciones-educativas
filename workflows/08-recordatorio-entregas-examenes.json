@@ -1,0 +1,152 @@
+{
+  "name": "08 - Recordatorio de Entregas y Examenes",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Recordatorio de Entregas y Examenes\n\nCada dia a las 8:00 revisa una hoja de calculo con las fechas de examenes y entregas de trabajos. Si hay alguno en los proximos 3 dias, envia un email recordatorio a los alumnos del curso afectado.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Crear hoja con columnas: fecha, tipo (examen/entrega), asignatura, curso, descripcion, email_grupo\n3. Formato de fecha: DD/MM/YYYY\n\n**Frecuencia:** Diaria a las 08:00\n\n**Categoria:** Gestion academica",
+        "height": 330,
+        "width": 420,
+        "color": 3
+      },
+      "id": "sticky-08-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, 20]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000001",
+      "name": "Cada dia lectivo a las 8AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [240, 400],
+      "notes": "Se ejecuta de lunes a viernes a las 8 de la manana, justo antes del inicio de la jornada escolar. Los fines de semana no se ejecuta porque no son dias lectivos. Si el centro tiene un calendario diferente, ajustar la expresion cron."
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000002",
+      "name": "Leer Calendario Academico",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [480, 400],
+      "notes": "Lee la hoja de calculo que contiene el calendario de examenes y entregas. Cada fila representa un evento academico con su fecha, tipo (examen o entrega de trabajo), asignatura, curso y email del grupo de alumnos al que afecta.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst hoy = new Date();\nconst en3dias = new Date();\nen3dias.setDate(hoy.getDate() + 3);\n\nconst proximos = [];\n\nfor (const item of items) {\n  const partes = item.json.fecha.split('/');\n  if (partes.length !== 3) continue;\n  \n  const fecha = new Date(partes[2], partes[1] - 1, partes[0]);\n  \n  if (fecha >= hoy && fecha <= en3dias) {\n    const diasRestantes = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));\n    let urgencia = '';\n    if (diasRestantes === 0) urgencia = 'HOY';\n    else if (diasRestantes === 1) urgencia = 'MANANA';\n    else urgencia = `En ${diasRestantes} dias`;\n    \n    proximos.push({\n      json: {\n        ...item.json,\n        dias_restantes: diasRestantes,\n        urgencia: urgencia,\n        hay_eventos: true\n      }\n    });\n  }\n}\n\nif (proximos.length === 0) {\n  return [{ json: { hay_eventos: false } }];\n}\n\nreturn proximos;"
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000003",
+      "name": "Filtrar Proximos 3 Dias",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 400],
+      "notes": "Filtra los eventos que caen en los proximos 3 dias. Para cada evento proximo, calcula cuantos dias faltan y asigna una etiqueta de urgencia: HOY, MANANA, o En X dias. Si no hay ningun evento proximo, devuelve hay_eventos = false para que el flujo no envie emails innecesarios. El parseo de fechas usa formato DD/MM/YYYY (formato espanol).",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "id": "condition-hay-eventos",
+              "leftValue": "={{ $json.hay_eventos }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000004",
+      "name": "Hay Eventos Proximos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [920, 400],
+      "notes": "Si hay eventos en los proximos 3 dias, sigue adelante y envia los recordatorios. Si no hay ninguno, el flujo termina aqui sin enviar nada."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email_grupo }}",
+        "subject": "={{ $json.urgencia }}: {{ $json.tipo }} de {{ $json.asignatura }} - {{ $json.curso }}",
+        "message": "=Hola,\n\nEste es un recordatorio automatico:\n\n{{ $json.urgencia }}: {{ $json.tipo }} de {{ $json.asignatura }}\nCurso: {{ $json.curso }}\nFecha: {{ $json.fecha }}\nDescripcion: {{ $json.descripcion }}\n\nRecordad preparar todo con tiempo.\n\nUn saludo,\nSistema de Automatizacion Educativa",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000005",
+      "name": "Enviar Recordatorio",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1140, 340],
+      "notes": "Envia un email a la lista de distribucion del curso afectado. El asunto incluye la urgencia (HOY, MANANA, En X dias) para que los alumnos lo vean de un vistazo. Cambiar email_grupo en la hoja de calculo por el email real de cada grupo.",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Cada dia lectivo a las 8AM": {
+      "main": [
+        [{ "node": "Leer Calendario Academico", "type": "main", "index": 0 }]
+      ]
+    },
+    "Leer Calendario Academico": {
+      "main": [
+        [{ "node": "Filtrar Proximos 3 Dias", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filtrar Proximos 3 Dias": {
+      "main": [
+        [{ "node": "Hay Eventos Proximos?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Hay Eventos Proximos?": {
+      "main": [
+        [{ "node": "Enviar Recordatorio", "type": "main", "index": 0 }],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    { "name": "Gestion academica" },
+    { "name": "Comunicaciones" }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

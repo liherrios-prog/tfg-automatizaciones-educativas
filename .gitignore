@@ -1,0 +1,18 @@
+# === Datos de n8n (persistencia local) ===
+n8n-data/
+
+# === Variables de entorno y credenciales ===
+.env
+.env.local
+.mcp.json
+
+# === Obsidian (configuracion del editor) ===
+.obsidian/
+
+# === GSD Planning (interno) ===
+.planning/
+
+# === Sistema ===
+.DS_Store
+Thumbs.db
+desktop.ini

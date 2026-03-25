@@ -1,0 +1,166 @@
+{
+  "name": "02 - Recogida Automatica de Google Forms a Hoja de Calculo",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Recogida Automatica de Formularios\n\nEste workflow recibe respuestas de formularios web (Google Forms o formularios personalizados) y las registra automaticamente en una hoja de Google Sheets, notificando al profesor responsable.\n\n**Antes de usar:**\n1. Configurar credenciales de Google Sheets y SMTP\n2. Crear un script en Google Apps Script que envie los datos del formulario al webhook\n3. Cambiar el email de destino en el nodo \"Notificar Profesor\"\n\n**URL del webhook:** http://localhost:5678/webhook/formulario-educativo\n\n**Categoría:** Comunicaciones / Gestion",
+        "height": 340,
+        "width": 420,
+        "color": 6
+      },
+      "id": "sticky-02-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [180, -40]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "formulario-educativo",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000001",
+      "name": "Webhook Formulario",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "formulario-educativo",
+      "notes": "Escucha peticiones POST en la ruta /webhook/formulario-educativo. Cuando Google Forms envia una respuesta (a traves de un script de Apps Script), este nodo la recibe y la pasa al siguiente paso. El modo onReceived responde inmediatamente al formulario con un 200 OK, sin esperar a que termine todo el workflow. Esto evita que el formulario muestre un error de timeout al usuario.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-nombre",
+              "name": "nombre",
+              "value": "={{ $json.body.nombre }}",
+              "type": "string"
+            },
+            {
+              "id": "set-email",
+              "name": "email",
+              "value": "={{ $json.body.email }}",
+              "type": "string"
+            },
+            {
+              "id": "set-mensaje",
+              "name": "mensaje",
+              "value": "={{ $json.body.mensaje }}",
+              "type": "string"
+            },
+            {
+              "id": "set-fecha",
+              "name": "fecha",
+              "value": "={{ $now.format('DD/MM/YYYY HH:mm') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Extraer Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 400],
+      "notes": "Extrae los campos que nos interesan del cuerpo de la peticion. Los datos llegan dentro de $json.body porque el webhook recibe un POST con JSON. Ademas, anadimos la fecha y hora exactas en que se recibio la respuesta, que es util para saber cuando se envio el formulario. Si el formulario tiene campos diferentes (por ejemplo telefono, curso, etc.), aqui es donde hay que anadir las nuevas asignaciones."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000003",
+      "name": "Guardar en Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [700, 400],
+      "notes": "Anade una nueva fila al final de la hoja de calculo con los datos extraidos del formulario. El modo autoMapInputData hace que n8n cree automaticamente las columnas necesarias si no existen. Es importante que la primera fila de la hoja tenga los encabezados (nombre, email, mensaje, fecha) para que el mapeo funcione bien.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "=profesor@centro.edu",
+        "subject": "=Nuevo formulario recibido de {{ $json.nombre }}",
+        "message": "=Se ha recibido una nueva respuesta del formulario educativo:\n\nNombre: {{ $json.nombre }}\nEmail: {{ $json.email }}\nMensaje: {{ $json.mensaje }}\nFecha de recepcion: {{ $json.fecha }}\n\nPuede consultar todas las respuestas en la hoja de calculo compartida.\n\nSistema de Automatizacion Educativa",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000004",
+      "name": "Notificar Profesor",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [920, 400],
+      "notes": "Envia un aviso por email al profesor responsable cada vez que alguien rellena el formulario. Asi el profesor no tiene que estar revisando la hoja de calculo constantemente. Hay que cambiar profesor@centro.edu por el email real del profesor. Si se quiere notificar a varios profesores, se pueden poner separados por comas.",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "Webhook Formulario": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos": {
+      "main": [
+        [
+          {
+            "node": "Guardar en Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar en Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Notificar Profesor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    {
+      "name": "Comunicaciones"
+    },
+    {
+      "name": "Gestion"
+    }
+  ],
+  "meta": {
+    "instanceId": "n8n-educativo"
+  }
+}
