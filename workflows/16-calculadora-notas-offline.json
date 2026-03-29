@@ -1,0 +1,63 @@
+{
+  "name": "16 - Calculadora de Notas Offline",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Calculadora de Notas Offline\n\n**100% OFFLINE** — No requiere conexion a internet. Los datos se almacenan en la base de datos interna de n8n (SQLite).\n\nRecibe las notas de un alumno por HTTP, calcula la media ponderada y devuelve la calificacion en la escala espanola.\n\n**URL:** POST http://localhost:5678/webhook/calcular-notas\n\n**Registrar notas:**\n```json\n{\n  \"alumno\": \"Maria Garcia\",\n  \"curso\": \"2ESO-A\",\n  \"examen\": 7.5,\n  \"trabajo\": 8,\n  \"participacion\": 9\n}\n```\n\n**Consultar historico:**\n```json\n{ \"accion\": \"consultar\", \"curso\": \"2ESO-A\" }\n```\n\n**Ponderacion por defecto:** Examen 50%, Trabajo 30%, Participacion 20%\n\n**Categoria:** Gestion academica | **Modo:** Offline",
+        "height": 450,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-16-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 10]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "calcular-notas",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wf16-001",
+      "name": "Webhook Notas",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 520],
+      "webhookId": "calcular-notas",
+      "notes": "Recibe peticiones POST con las notas del alumno o una consulta del historico. Usa el modo lastNode para que la respuesta la genere el ultimo nodo del flujo."
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body;\nconst staticData = $getWorkflowStaticData('global');\n\nif (!staticData.notas) staticData.notas = [];\n\n// Modo consulta: devuelve el historico de notas almacenadas\nif (data.accion === 'consultar') {\n  let resultados = staticData.notas;\n  if (data.curso) {\n    resultados = resultados.filter(n => n.curso === data.curso);\n  }\n  if (data.alumno) {\n    resultados = resultados.filter(n =>\n      n.alumno.toLowerCase().includes(data.alumno.toLowerCase())\n    );\n  }\n  return [{ json: { status: 'ok', total: resultados.length, resultados } }];\n}\n\n// Validar campos obligatorios\nif (!data.alumno || !data.curso || data.examen === undefined ||\n    data.trabajo === undefined || data.participacion === undefined) {\n  return [{ json: {\n    status: 'error',\n    mensaje: 'Campos obligatorios: alumno, curso, examen, trabajo, participacion'\n  } }];\n}\n\n// Calcular media ponderada\nconst pE = data.ponderacion_examen || 0.5;\nconst pT = data.ponderacion_trabajo || 0.3;\nconst pP = data.ponderacion_participacion || 0.2;\nconst media = (data.examen * pE) + (data.trabajo * pT) + (data.participacion * pP);\nconst mediaR = Math.round(media * 100) / 100;\n\n// Escala cualitativa espanola\nlet calificacion;\nif (media < 5) calificacion = 'Insuficiente';\nelse if (media < 6) calificacion = 'Suficiente';\nelse if (media < 7) calificacion = 'Bien';\nelse if (media < 9) calificacion = 'Notable';\nelse calificacion = 'Sobresaliente';\n\nconst registro = {\n  id: staticData.notas.length + 1,\n  alumno: data.alumno,\n  curso: data.curso,\n  examen: data.examen,\n  trabajo: data.trabajo,\n  participacion: data.participacion,\n  media: mediaR,\n  calificacion,\n  fecha: new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })\n};\n\nstaticData.notas.push(registro);\nreturn [{ json: { status: 'ok', ...registro } }];"
+      },
+      "id": "wf16-002",
+      "name": "Calcular y Almacenar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 520],
+      "notes": "Calcula la media ponderada de las notas del alumno (examen 50%, trabajo 30%, participacion 20% por defecto) y la almacena en la base de datos interna de n8n. Convierte la nota numerica a la escala cualitativa espanola. Tambien permite consultar el historico de notas almacenadas filtrando por curso o alumno."
+    }
+  ],
+  "connections": {
+    "Webhook Notas": {
+      "main": [[{ "node": "Calcular y Almacenar", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    { "name": "Gestion academica" },
+    { "name": "Offline" },
+    { "name": "Notas" }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

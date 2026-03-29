@@ -1,0 +1,63 @@
+{
+  "name": "20 - Sorteo y Asignacion de Grupos",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Sorteo y Asignacion de Grupos\n\n**100% OFFLINE** — No requiere conexion a internet. No almacena datos: genera el resultado en el momento.\n\nRecibe una lista de alumnos y un numero de grupos deseado. Reparte los alumnos de forma aleatoria y equilibrada usando el algoritmo Fisher-Yates. Util para formar equipos de trabajo, asignar temas de exposiciones, repartir turnos de laboratorio, etc.\n\n**URL:** POST http://localhost:5678/webhook/sorteo-grupos\n\n**Ejemplo:**\n```json\n{\n  \"alumnos\": [\"Maria\", \"Carlos\", \"Ana\", \"Pedro\", \"Lucia\", \"Jorge\"],\n  \"num_grupos\": 3\n}\n```\n\nEl campo `num_grupos` es opcional (por defecto 2).\n\n**Categoria:** Herramientas docentes | **Modo:** Offline",
+        "height": 400,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-20-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 10]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sorteo-grupos",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wf20-001",
+      "name": "Webhook Sorteo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 460],
+      "webhookId": "sorteo-grupos",
+      "notes": "Recibe la lista de alumnos y el numero de grupos deseado."
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body;\n\nif (!data.alumnos || !Array.isArray(data.alumnos) || data.alumnos.length === 0) {\n  return [{ json: {\n    status: 'error',\n    mensaje: 'Campo obligatorio: alumnos (array de nombres)'\n  } }];\n}\n\nconst numGrupos = data.num_grupos || 2;\n\nif (numGrupos < 2) {\n  return [{ json: { status: 'error', mensaje: 'num_grupos debe ser al menos 2' } }];\n}\nif (numGrupos > data.alumnos.length) {\n  return [{ json: { status: 'error', mensaje: `No se pueden crear ${numGrupos} grupos con solo ${data.alumnos.length} alumnos` } }];\n}\n\n// Fisher-Yates shuffle: algoritmo estandar para mezcla aleatoria uniforme\nconst alumnos = [...data.alumnos];\nfor (let i = alumnos.length - 1; i > 0; i--) {\n  const j = Math.floor(Math.random() * (i + 1));\n  [alumnos[i], alumnos[j]] = [alumnos[j], alumnos[i]];\n}\n\n// Distribucion round-robin para equilibrar los grupos\nconst grupos = [];\nfor (let i = 0; i < numGrupos; i++) {\n  grupos.push({ nombre: `Grupo ${i + 1}`, miembros: [] });\n}\nalumnos.forEach((alumno, index) => {\n  grupos[index % numGrupos].miembros.push(alumno);\n});\n\n// Anadir conteo a cada grupo\ngrupos.forEach(g => g.total = g.miembros.length);\n\nreturn [{ json: {\n  status: 'ok',\n  total_alumnos: data.alumnos.length,\n  num_grupos: numGrupos,\n  grupos,\n  fecha: new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' }),\n  nota: 'Cada ejecucion genera una distribucion diferente'\n} }];"
+      },
+      "id": "wf20-002",
+      "name": "Sortear y Asignar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 460],
+      "notes": "Mezcla los alumnos usando el algoritmo Fisher-Yates (mezcla uniforme garantizada) y los distribuye en grupos equilibrados mediante round-robin. Cada ejecucion produce una distribucion diferente."
+    }
+  ],
+  "connections": {
+    "Webhook Sorteo": {
+      "main": [[{ "node": "Sortear y Asignar", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    { "name": "Herramientas docentes" },
+    { "name": "Offline" },
+    { "name": "Sorteos" }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

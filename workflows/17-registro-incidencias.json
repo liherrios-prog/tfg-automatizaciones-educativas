@@ -1,0 +1,63 @@
+{
+  "name": "17 - Registro de Incidencias Offline",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Registro de Incidencias Offline\n\n**100% OFFLINE** — No requiere conexion a internet. Los datos se almacenan en la base de datos interna de n8n (SQLite).\n\nPermite registrar y consultar incidencias de convivencia del centro. Cada incidencia queda almacenada con fecha, tipo, alumno implicado y profesor que la reporta.\n\n**URL:** POST http://localhost:5678/webhook/registro-incidencias\n\n**Registrar incidencia:**\n```json\n{\n  \"alumno\": \"Carlos Lopez\",\n  \"curso\": \"3ESO-B\",\n  \"tipo\": \"leve\",\n  \"descripcion\": \"Uso del movil en clase\",\n  \"reportado_por\": \"Prof. Martinez\"\n}\n```\nTipos validos: `leve`, `grave`, `muy_grave`\n\n**Consultar incidencias:**\n```json\n{ \"accion\": \"consultar\", \"curso\": \"3ESO-B\" }\n```\n\n**Categoria:** Convivencia | **Modo:** Offline",
+        "height": 480,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-17-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 10]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "registro-incidencias",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wf17-001",
+      "name": "Webhook Incidencias",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 540],
+      "webhookId": "registro-incidencias",
+      "notes": "Recibe peticiones POST para registrar nuevas incidencias o consultar las existentes."
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body;\nconst staticData = $getWorkflowStaticData('global');\n\nif (!staticData.incidencias) staticData.incidencias = [];\n\n// Modo consulta\nif (data.accion === 'consultar') {\n  let resultados = staticData.incidencias;\n  if (data.curso) resultados = resultados.filter(i => i.curso === data.curso);\n  if (data.alumno) resultados = resultados.filter(i =>\n    i.alumno.toLowerCase().includes(data.alumno.toLowerCase())\n  );\n  if (data.tipo) resultados = resultados.filter(i => i.tipo === data.tipo);\n\n  const resumen = {\n    total: resultados.length,\n    por_tipo: {\n      leve: resultados.filter(i => i.tipo === 'leve').length,\n      grave: resultados.filter(i => i.tipo === 'grave').length,\n      muy_grave: resultados.filter(i => i.tipo === 'muy_grave').length\n    }\n  };\n  return [{ json: { status: 'ok', resumen, incidencias: resultados } }];\n}\n\n// Modo borrar todo (solo para administradores)\nif (data.accion === 'borrar_todo' && data.confirmar === true) {\n  const total = staticData.incidencias.length;\n  staticData.incidencias = [];\n  return [{ json: { status: 'ok', mensaje: `Se han borrado ${total} incidencias` } }];\n}\n\n// Validar campos obligatorios\nif (!data.alumno || !data.curso || !data.tipo || !data.descripcion || !data.reportado_por) {\n  return [{ json: {\n    status: 'error',\n    mensaje: 'Campos obligatorios: alumno, curso, tipo (leve/grave/muy_grave), descripcion, reportado_por'\n  } }];\n}\n\nconst tipos_validos = ['leve', 'grave', 'muy_grave'];\nif (!tipos_validos.includes(data.tipo)) {\n  return [{ json: {\n    status: 'error',\n    mensaje: 'Tipo debe ser: leve, grave o muy_grave'\n  } }];\n}\n\nconst incidencia = {\n  id: staticData.incidencias.length + 1,\n  alumno: data.alumno,\n  curso: data.curso,\n  tipo: data.tipo,\n  descripcion: data.descripcion,\n  reportado_por: data.reportado_por,\n  fecha: new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })\n};\n\nstaticData.incidencias.push(incidencia);\nreturn [{ json: { status: 'ok', mensaje: 'Incidencia registrada', incidencia } }];"
+      },
+      "id": "wf17-002",
+      "name": "Gestionar Incidencia",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 540],
+      "notes": "Registra nuevas incidencias o consulta las existentes. Cada incidencia se almacena con un ID autoincremental, fecha y hora, tipo de gravedad, alumno implicado y profesor que la reporta. La consulta permite filtrar por curso, alumno o tipo de incidencia, y devuelve un resumen estadistico."
+    }
+  ],
+  "connections": {
+    "Webhook Incidencias": {
+      "main": [[{ "node": "Gestionar Incidencia", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    { "name": "Convivencia" },
+    { "name": "Offline" },
+    { "name": "Incidencias" }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

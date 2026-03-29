@@ -1,0 +1,63 @@
+{
+  "name": "21 - Diario de Actividad del Centro",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Diario de Actividad del Centro\n\n**100% OFFLINE** — No requiere conexion a internet. Los datos se almacenan en la base de datos interna de n8n (SQLite).\n\nRegistro centralizado de actividades, eventos e hitos del centro educativo. Actua como un libro de registro digital que permite anotar lo que ocurre cada dia y generar resumenes por periodo.\n\n**URL:** POST http://localhost:5678/webhook/diario-actividad\n\n**Registrar entrada:**\n```json\n{\n  \"tipo\": \"evento\",\n  \"titulo\": \"Excursion al museo\",\n  \"descripcion\": \"Salida con 2ESO al Museo de Ciencias\",\n  \"responsable\": \"Prof. Lopez\"\n}\n```\nTipos: `evento`, `incidencia`, `logro`, `recordatorio`, `acta`\n\n**Consultar entradas:**\n```json\n{ \"accion\": \"consultar\", \"tipo\": \"evento\" }\n```\n\n**Resumen estadistico:**\n```json\n{ \"accion\": \"resumen\" }\n```\n\n**Categoria:** Administracion | **Modo:** Offline",
+        "height": 520,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-21-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 10]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "diario-actividad",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wf21-001",
+      "name": "Webhook Diario",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 580],
+      "webhookId": "diario-actividad",
+      "notes": "Recibe peticiones POST para registrar nuevas entradas en el diario o consultar las existentes."
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body;\nconst staticData = $getWorkflowStaticData('global');\n\nif (!staticData.entradas) staticData.entradas = [];\n\nconst ahora = new Date();\nconst fechaStr = ahora.toLocaleString('es-ES', { timeZone: 'Europe/Madrid' });\nconst fechaCorta = ahora.toLocaleDateString('es-ES', { timeZone: 'Europe/Madrid' });\n\n// Modo resumen: estadisticas generales\nif (data.accion === 'resumen') {\n  const entradas = staticData.entradas;\n  const tipos = ['evento', 'incidencia', 'logro', 'recordatorio', 'acta'];\n  const por_tipo = {};\n  tipos.forEach(t => por_tipo[t] = entradas.filter(e => e.tipo === t).length);\n\n  // Entradas de los ultimos 7 dias\n  const hace7dias = ahora.getTime() - (7 * 24 * 60 * 60 * 1000);\n  const recientes = entradas.filter(e => e.timestamp > hace7dias);\n\n  return [{ json: {\n    status: 'ok',\n    resumen: {\n      total_entradas: entradas.length,\n      por_tipo,\n      ultimos_7_dias: recientes.length,\n      primera_entrada: entradas.length > 0 ? entradas[0].fecha : null,\n      ultima_entrada: entradas.length > 0 ? entradas[entradas.length - 1].fecha : null\n    }\n  } }];\n}\n\n// Modo consulta: buscar entradas\nif (data.accion === 'consultar') {\n  let resultados = staticData.entradas;\n  if (data.tipo) resultados = resultados.filter(e => e.tipo === data.tipo);\n  if (data.responsable) resultados = resultados.filter(e =>\n    e.responsable && e.responsable.toLowerCase().includes(data.responsable.toLowerCase())\n  );\n  if (data.fecha) resultados = resultados.filter(e => e.fecha_corta === data.fecha);\n  if (data.buscar) {\n    const termino = data.buscar.toLowerCase();\n    resultados = resultados.filter(e =>\n      e.titulo.toLowerCase().includes(termino) ||\n      e.descripcion.toLowerCase().includes(termino)\n    );\n  }\n  // Devolver los ultimos 50 resultados (mas recientes primero)\n  const ultimos = resultados.slice(-50).reverse();\n  return [{ json: { status: 'ok', total: resultados.length, mostrando: ultimos.length, entradas: ultimos } }];\n}\n\n// Modo borrar (protegido)\nif (data.accion === 'borrar_todo' && data.confirmar === true) {\n  const total = staticData.entradas.length;\n  staticData.entradas = [];\n  return [{ json: { status: 'ok', mensaje: `Se han borrado ${total} entradas del diario` } }];\n}\n\n// Registrar nueva entrada\nconst tipos_validos = ['evento', 'incidencia', 'logro', 'recordatorio', 'acta'];\nif (!data.tipo || !data.titulo || !data.descripcion) {\n  return [{ json: {\n    status: 'error',\n    mensaje: 'Campos obligatorios: tipo (evento/incidencia/logro/recordatorio/acta), titulo, descripcion'\n  } }];\n}\nif (!tipos_validos.includes(data.tipo)) {\n  return [{ json: { status: 'error', mensaje: 'Tipo debe ser: evento, incidencia, logro, recordatorio o acta' } }];\n}\n\nconst entrada = {\n  id: staticData.entradas.length + 1,\n  tipo: data.tipo,\n  titulo: data.titulo,\n  descripcion: data.descripcion,\n  responsable: data.responsable || 'No especificado',\n  fecha: fechaStr,\n  fecha_corta: fechaCorta,\n  timestamp: ahora.getTime()\n};\n\nstaticData.entradas.push(entrada);\nreturn [{ json: { status: 'ok', mensaje: 'Entrada registrada en el diario', entrada } }];"
+      },
+      "id": "wf21-002",
+      "name": "Gestionar Diario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 580],
+      "notes": "Gestiona el diario de actividad del centro. Permite registrar entradas de 5 tipos (evento, incidencia, logro, recordatorio, acta), consultarlas con filtros (tipo, responsable, fecha, busqueda por texto) y generar resumenes estadisticos. Los datos se almacenan en la base de datos interna de n8n."
+    }
+  ],
+  "connections": {
+    "Webhook Diario": {
+      "main": [[{ "node": "Gestionar Diario", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    { "name": "Administracion" },
+    { "name": "Offline" },
+    { "name": "Registro" }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

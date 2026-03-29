@@ -12,7 +12,7 @@ Solución portátil basada en **Docker** y **n8n** que automatiza tareas repetit
 
 - **Portátil** — Funciona desde un USB o cualquier equipo con Docker
 - **Multiplataforma** — Scripts de arranque para Windows, Linux y macOS con instalación automática de Docker
-- **Sin dependencias externas** — Todo corre dentro de un contenedor Docker con base de datos SQLite integrada
+- **Funciona sin Internet** — 6 workflows offline que almacenan datos en SQLite (los 15 restantes usan Google Sheets/SMTP)
 - **Escalable** — Añade tantos workflows como necesites sin tocar la infraestructura
 - **Listo para usar** — Workflows educativos preconfigurados listos para importar
 
@@ -20,23 +20,40 @@ Solución portátil basada en **Docker** y **n8n** que automatiza tareas repetit
 
 ## Workflows incluidos
 
-| # | Workflow | Descripción |
-|---|---------|-------------|
-| 01 | Email masivo a padres/tutores | Envío de comunicaciones desde una hoja de cálculo |
-| 02 | Recogida de Google Forms | Centraliza respuestas de formularios en Google Sheets |
-| 03 | Recordatorio semanal de reuniones | Resumen automático cada lunes al equipo educativo |
-| 04 | Control de asistencia diario | Registro vía webhook + notificación a familias por ausencia |
-| 05 | Consolidar notas del trimestre | Agrega calificaciones de varias hojas en un informe unificado |
-| 06 | Informe mensual de asistencia | Genera estadísticas de asistencia por curso cada mes |
-| 07 | Backup automático de datos | Copia de seguridad diaria de todos los workflows a Google Drive |
-| 08 | Recordatorio de entregas y exámenes | Avisa a los alumnos 3 días antes de exámenes y entregas |
-| 09 | Gestión de inventario TIC | Registro de préstamos/devoluciones de equipos informáticos |
-| 10 | Notificación de cumpleaños | Avisa al tutor cuando un alumno de su grupo cumple años |
-| 11 | Alerta de absentismo acumulado | Detecta alumnos con +3 ausencias y alerta al jefe de estudios |
-| 12 | Boletín semanal para familias | Resumen automático con eventos y avisos cada viernes |
-| 13 | Solicitud de material/recursos | Registro vía webhook + notificación urgente al coordinador |
-| 14 | Gestión de guardias/sustituciones | Asigna sustitutos automáticamente desde el cuadrante de guardias |
-| 15 | Encuesta de satisfacción | Envío mensual de encuestas a familias con registro de seguimiento |
+El proyecto incluye **21 workflows** organizados en dos modos de funcionamiento. Consulta el [catálogo completo](workflows/CATALOGO.md) para más detalles.
+
+### Workflows online (requieren Internet)
+
+| # | Workflow | Categoría | Descripción |
+|---|---------|-----------|-------------|
+| 01 | Email masivo a padres/tutores | Comunicaciones | Envío de comunicaciones desde una hoja de cálculo |
+| 02 | Recogida de Google Forms | Comunicaciones | Centraliza respuestas de formularios en Google Sheets |
+| 03 | Recordatorio semanal de reuniones | Gestión académica | Resumen automático cada lunes al equipo educativo |
+| 04 | Control de asistencia diario | Gestión académica | Registro vía webhook + notificación a familias por ausencia |
+| 05 | Consolidar notas del trimestre | Gestión académica | Agrega calificaciones de varias hojas en un informe unificado |
+| 06 | Informe mensual de asistencia | Gestión académica | Genera estadísticas de asistencia por curso cada mes |
+| 07 | Backup automático de datos | Mantenimiento | Copia de seguridad diaria de todos los workflows a Google Drive |
+| 08 | Recordatorio de entregas y exámenes | Comunicaciones | Avisa a los alumnos 3 días antes de exámenes y entregas |
+| 09 | Gestión de inventario TIC | Gestión TIC | Registro de préstamos/devoluciones de equipos informáticos |
+| 10 | Notificación de cumpleaños | Convivencia | Avisa al tutor cuando un alumno de su grupo cumple años |
+| 11 | Alerta de absentismo acumulado | Alertas | Detecta alumnos con +3 ausencias y alerta al jefe de estudios |
+| 12 | Boletín semanal para familias | Comunicaciones | Resumen automático con eventos y avisos cada viernes |
+| 13 | Solicitud de material/recursos | Gestión de recursos | Registro vía webhook + notificación urgente al coordinador |
+| 14 | Gestión de guardias/sustituciones | Gestión de personal | Asigna sustitutos automáticamente desde el cuadrante de guardias |
+| 15 | Encuesta de satisfacción | Calidad | Envío mensual de encuestas a familias con registro de seguimiento |
+
+### Workflows offline (funcionan sin Internet)
+
+Estos workflows almacenan datos en la base de datos interna de n8n (SQLite), sin depender de Google Sheets ni servicios externos. Ideales para centros con conexión limitada o para demostrar la portabilidad total del sistema en USB.
+
+| # | Workflow | Categoría | Descripción |
+|---|---------|-----------|-------------|
+| 16 | Calculadora de notas offline | Gestión académica | Calcula medias ponderadas y almacena histórico de notas |
+| 17 | Registro de incidencias | Convivencia | Registra y consulta incidencias con filtros y estadísticas |
+| 18 | Generador de contraseñas | Herramientas TIC | Genera usuarios y contraseñas seguras para listas de alumnos |
+| 19 | Control de préstamos offline | Gestión TIC | Gestiona préstamos/devoluciones con alertas de retraso |
+| 20 | Sorteo y asignación de grupos | Herramientas docentes | Reparte alumnos en grupos aleatorios equilibrados |
+| 21 | Diario de actividad del centro | Administración | Libro de registro digital con búsqueda y resúmenes |
 
 Todos los workflows están en la carpeta `workflows/` como archivos JSON listos para importar en n8n.
 
@@ -125,21 +142,17 @@ scripts\stop.bat
 │   ├── stop.bat                # Parada para Windows
 │   └── stop.sh                 # Parada para Linux/macOS
 ├── workflows/
-│   ├── 01-email-masivo-padres.json
+│   ├── CATALOGO.md                         # Catálogo organizado de todos los workflows
+│   ├── 01-email-masivo-padres.json         # Online — Comunicaciones
 │   ├── 02-recogida-formulario-google-forms.json
-│   ├── 03-recordatorio-reuniones-semanal.json
-│   ├── 04-control-asistencia.json
-│   ├── 05-consolidar-notas-trimestre.json
-│   ├── 06-generador-informe-asistencia.json
-│   ├── 07-backup-automatico-datos.json
-│   ├── 08-recordatorio-entregas-examenes.json
-│   ├── 09-gestion-inventario-tic.json
-│   ├── 10-notificacion-cumpleanos-alumnos.json
-│   ├── 11-alerta-absentismo-acumulado.json
-│   ├── 12-boletin-semanal-familias.json
-│   ├── 13-solicitud-material-recursos.json
-│   ├── 14-gestion-guardias-sustituciones.json
-│   └── 15-encuesta-satisfaccion.json
+│   ├── ...                                 # (15 workflows online, ver catálogo)
+│   ├── 15-encuesta-satisfaccion.json
+│   ├── 16-calculadora-notas-offline.json   # Offline — Gestión académica
+│   ├── 17-registro-incidencias.json        # Offline — Convivencia
+│   ├── 18-generador-contrasenas.json       # Offline — Herramientas TIC
+│   ├── 19-control-prestamos-offline.json   # Offline — Gestión TIC
+│   ├── 20-sorteo-grupos.json               # Offline — Herramientas docentes
+│   └── 21-diario-actividad.json            # Offline — Administración
 ├── n8n-data/                   # Datos persistentes (se crea automáticamente)
 └── Memoria/                    # Documentación del proyecto (7 capítulos)
 ```

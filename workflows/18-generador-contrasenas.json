@@ -1,0 +1,63 @@
+{
+  "name": "18 - Generador de Contrasenas para Alumnos",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Generador de Contrasenas para Alumnos\n\n**100% OFFLINE** — No requiere conexion a internet. No almacena datos: genera y devuelve las credenciales en el momento.\n\nRecibe una lista de nombres de alumnos y genera un usuario y contrasena segura para cada uno. Util para crear cuentas en plataformas internas del centro, laboratorios, equipos compartidos, etc.\n\n**URL:** POST http://localhost:5678/webhook/generar-contrasenas\n\n**Ejemplo:**\n```json\n{\n  \"alumnos\": [\"Maria Garcia\", \"Carlos Lopez\", \"Ana Martinez\"],\n  \"longitud\": 12\n}\n```\n\nEl campo `longitud` es opcional (por defecto 12 caracteres). Las contrasenas generadas incluyen mayusculas, minusculas, numeros y simbolos. Se excluyen caracteres ambiguos (0, O, l, I, 1).\n\n**Categoria:** Herramientas TIC | **Modo:** Offline",
+        "height": 420,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-18-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 10]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generar-contrasenas",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wf18-001",
+      "name": "Webhook Contrasenas",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 480],
+      "webhookId": "generar-contrasenas",
+      "notes": "Recibe una peticion POST con la lista de alumnos para los que generar credenciales."
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body;\n\nif (!data.alumnos || !Array.isArray(data.alumnos) || data.alumnos.length === 0) {\n  return [{ json: {\n    status: 'error',\n    mensaje: 'Campo obligatorio: alumnos (array de nombres). Ejemplo: [\"Maria Garcia\", \"Carlos Lopez\"]'\n  } }];\n}\n\nconst longitud = data.longitud || 12;\nconst mayusculas = 'ABCDEFGHJKLMNPQRSTUVWXYZ';\nconst minusculas = 'abcdefghjkmnpqrstuvwxyz';\nconst numeros = '23456789';\nconst simbolos = '!@#$%&*';\nconst todos = mayusculas + minusculas + numeros + simbolos;\n\nfunction generarContrasena(len) {\n  // Asegurar al menos un caracter de cada tipo\n  let pass = '';\n  pass += mayusculas.charAt(Math.floor(Math.random() * mayusculas.length));\n  pass += minusculas.charAt(Math.floor(Math.random() * minusculas.length));\n  pass += numeros.charAt(Math.floor(Math.random() * numeros.length));\n  pass += simbolos.charAt(Math.floor(Math.random() * simbolos.length));\n  for (let i = 4; i < len; i++) {\n    pass += todos.charAt(Math.floor(Math.random() * todos.length));\n  }\n  // Mezclar los caracteres\n  return pass.split('').sort(() => Math.random() - 0.5).join('');\n}\n\nfunction generarUsuario(nombre) {\n  return nombre\n    .toLowerCase()\n    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n    .replace(/\\s+/g, '.')\n    .replace(/[^a-z0-9.]/g, '');\n}\n\nconst credenciales = data.alumnos.map(nombre => ({\n  alumno: nombre,\n  usuario: generarUsuario(nombre),\n  contrasena: generarContrasena(longitud)\n}));\n\nreturn [{ json: {\n  status: 'ok',\n  total: credenciales.length,\n  longitud_contrasena: longitud,\n  credenciales,\n  generado: new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })\n} }];"
+      },
+      "id": "wf18-002",
+      "name": "Generar Credenciales",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 480],
+      "notes": "Genera un usuario (basado en el nombre, sin tildes ni espacios) y una contrasena segura para cada alumno. Las contrasenas incluyen al menos una mayuscula, una minuscula, un numero y un simbolo. Se excluyen caracteres ambiguos como 0/O y l/1/I para evitar confusiones al escribirlas."
+    }
+  ],
+  "connections": {
+    "Webhook Contrasenas": {
+      "main": [[{ "node": "Generar Credenciales", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    { "name": "Herramientas TIC" },
+    { "name": "Offline" },
+    { "name": "Seguridad" }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "19 - Control de Prestamos de Material Offline",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Control de Prestamos de Material Offline\n\n**100% OFFLINE** — No requiere conexion a internet. Los datos se almacenan en la base de datos interna de n8n (SQLite).\n\nGestiona prestamos y devoluciones de equipos informaticos (portatiles, tablets, proyectores, etc.) sin depender de Google Sheets. Detecta equipos prestados durante mas de 7 dias y alerta en la consulta.\n\n**URL:** POST http://localhost:5678/webhook/prestamos-offline\n\n**Prestar equipo:**\n```json\n{ \"accion\": \"prestar\", \"equipo\": \"PORTATIL-012\", \"profesor\": \"Garcia\" }\n```\n\n**Devolver equipo:**\n```json\n{ \"accion\": \"devolver\", \"equipo\": \"PORTATIL-012\" }\n```\n\n**Consultar inventario:**\n```json\n{ \"accion\": \"consultar\" }\n```\n\n**Categoria:** Gestion TIC | **Modo:** Offline",
+        "height": 480,
+        "width": 460,
+        "color": 5
+      },
+      "id": "sticky-19-info",
+      "name": "Nota Informativa",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [160, 10]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prestamos-offline",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wf19-001",
+      "name": "Webhook Prestamos",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 540],
+      "webhookId": "prestamos-offline",
+      "notes": "Recibe peticiones POST para gestionar el inventario de equipos: prestar, devolver o consultar."
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body;\nconst staticData = $getWorkflowStaticData('global');\n\nif (!staticData.inventario) staticData.inventario = {};\nif (!staticData.historial) staticData.historial = [];\n\nconst ahora = new Date();\nconst ahoraStr = ahora.toLocaleString('es-ES', { timeZone: 'Europe/Madrid' });\n\n// Modo consulta: estado actual del inventario\nif (data.accion === 'consultar') {\n  const equipos = Object.entries(staticData.inventario).map(([equipo, info]) => {\n    const resultado = { equipo, ...info };\n    if (info.estado === 'prestado' && info.fecha_prestamo_ts) {\n      const dias = Math.floor((ahora.getTime() - info.fecha_prestamo_ts) / (1000 * 60 * 60 * 24));\n      resultado.dias_prestado = dias;\n      if (dias > 7) resultado.alerta = 'Prestamo superior a 7 dias';\n    }\n    return resultado;\n  });\n  const prestados = equipos.filter(e => e.estado === 'prestado');\n  const disponibles = equipos.filter(e => e.estado === 'disponible');\n  const alertas = equipos.filter(e => e.alerta);\n  return [{ json: {\n    status: 'ok',\n    resumen: { total: equipos.length, prestados: prestados.length, disponibles: disponibles.length, alertas: alertas.length },\n    equipos,\n    alertas: alertas.length > 0 ? alertas : undefined\n  } }];\n}\n\nif (!data.equipo || !data.accion) {\n  return [{ json: { status: 'error', mensaje: 'Campos obligatorios: equipo, accion (prestar/devolver/consultar)' } }];\n}\n\n// Prestar equipo\nif (data.accion === 'prestar') {\n  if (!data.profesor) {\n    return [{ json: { status: 'error', mensaje: 'Campo obligatorio para prestamo: profesor' } }];\n  }\n  const equipo = staticData.inventario[data.equipo];\n  if (equipo && equipo.estado === 'prestado') {\n    return [{ json: { status: 'error', mensaje: `${data.equipo} ya esta prestado a ${equipo.profesor} desde ${equipo.fecha_prestamo}` } }];\n  }\n  staticData.inventario[data.equipo] = {\n    estado: 'prestado',\n    profesor: data.profesor,\n    fecha_prestamo: ahoraStr,\n    fecha_prestamo_ts: ahora.getTime()\n  };\n  staticData.historial.push({ equipo: data.equipo, accion: 'prestamo', profesor: data.profesor, fecha: ahoraStr });\n  return [{ json: { status: 'ok', mensaje: `${data.equipo} prestado a ${data.profesor}` } }];\n}\n\n// Devolver equipo\nif (data.accion === 'devolver') {\n  const equipo = staticData.inventario[data.equipo];\n  if (!equipo || equipo.estado !== 'prestado') {\n    return [{ json: { status: 'error', mensaje: `${data.equipo} no esta registrado como prestado` } }];\n  }\n  const profesor = equipo.profesor;\n  staticData.inventario[data.equipo] = {\n    estado: 'disponible',\n    ultimo_usuario: profesor,\n    fecha_devolucion: ahoraStr\n  };\n  staticData.historial.push({ equipo: data.equipo, accion: 'devolucion', profesor, fecha: ahoraStr });\n  return [{ json: { status: 'ok', mensaje: `${data.equipo} devuelto por ${profesor}` } }];\n}\n\nreturn [{ json: { status: 'error', mensaje: 'Accion no valida. Usa: prestar, devolver o consultar' } }];"
+      },
+      "id": "wf19-002",
+      "name": "Gestionar Inventario",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 540],
+      "notes": "Gestiona el inventario de equipos usando la base de datos interna de n8n. Controla prestamos y devoluciones, detecta equipos prestados durante mas de 7 dias, y mantiene un historial completo de operaciones. A diferencia del workflow 09, este funciona completamente sin internet."
+    }
+  ],
+  "connections": {
+    "Webhook Prestamos": {
+      "main": [[{ "node": "Gestionar Inventario", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "saveManualExecutions": true
+  },
+  "tags": [
+    { "name": "Gestion TIC" },
+    { "name": "Offline" },
+    { "name": "Inventario" }
+  ],
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}
