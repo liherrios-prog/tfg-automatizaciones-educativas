@@ -24,3 +24,6 @@ Módulo PROYECTO*.md
 .DS_Store
 Thumbs.db
 desktop.ini
+node_modules/
+package.json
+package-lock.json
