@@ -11,8 +11,9 @@
 
 - [ ] Portátil encendido con Docker Desktop arrancado
 - [ ] n8n corriendo en http://localhost:5678 (ejecutar `scripts/start.bat` 5 minutos antes)
-- [ ] Los 10 workflows importados y visibles en n8n
+- [ ] Los 21 workflows importados y visibles en n8n
 - [ ] Navegador abierto con dos pestañas: n8n y una hoja de Google Sheets de ejemplo
+- [ ] WiFi desconectado para la demo offline (o preparado para desconectarlo)
 - [ ] Presentación (si la usas) cargada en pantalla
 - [ ] Cable HDMI / adaptador probado con el proyector
 - [ ] Plan B: capturas de pantalla de los workflows por si Docker falla
@@ -33,27 +34,32 @@
 
 > "He creado un sistema basado en dos tecnologías: Docker, para que todo funcione dentro de un contenedor portátil, y n8n, que es un motor de automatización visual donde creas flujos de trabajo arrastrando y conectando bloques."
 >
-> "El sistema se puede llevar en un USB. El profesor ejecuta un script, se abre n8n en el navegador, y ya tiene disponibles 10 automatizaciones listas para usar. Los scripts de arranque detectan si Docker está instalado y, si no lo está, lo instalan automáticamente. Funciona en Windows, Linux y macOS."
+> "El sistema se puede llevar en un USB. El profesor ejecuta un script, se abre n8n en el navegador, y ya tiene disponibles 21 automatizaciones listas para usar. De estas 21, 6 funcionan completamente sin Internet, almacenando los datos en la base de datos SQLite interna de n8n. Los scripts de arranque detectan si Docker está instalado y, si no lo está, lo instalan automáticamente. Funciona en Windows, Linux y macOS."
 
 **Puntos clave a mencionar:**
-- Docker + SQLite = sin dependencias externas
-- Bind mount = portabilidad real (USB)
+- Docker + SQLite = portabilidad total (USB)
+- 21 workflows: 15 online + 6 offline
+- Los offline usan `$getWorkflowStaticData` para almacenar datos sin Internet
 - Scripts multiplataforma con auto-instalación de Docker
-- 10 workflows cubriendo 5 categorías diferentes
+- Comparativa formal: n8n elegido sobre Zapier, Make y Power Automate
 
-### Slide 4: Los 10 workflows (1 minuto)
+### Slide 4: Los 21 workflows (1 minuto)
 
-> "He desarrollado 10 automatizaciones organizadas en 5 categorías:"
+> "He desarrollado 21 automatizaciones organizadas en 8 categorías y dos modos de funcionamiento:"
 
-Enumerar rápido, SIN detenerse en cada uno:
+Enumerar rápido por categorías, SIN detenerse en cada uno:
 
-| Categoría | Workflows |
-|-----------|-----------|
-| Comunicaciones | Email masivo a familias, recogida de Google Forms, recordatorio de entregas/exámenes |
-| Gestión académica | Recordatorio de reuniones, control de asistencia, consolidación de notas, informe mensual |
-| Gestión TIC | Inventario de equipos informáticos |
-| Mantenimiento | Backup automático a Google Drive |
-| Convivencia | Notificación de cumpleaños al tutor |
+| Categoría | Workflows (online) | Workflows (offline) |
+|-----------|-------------------|-------------------|
+| Comunicaciones | Email masivo, Google Forms, boletín semanal, recordatorio entregas | — |
+| Gestión académica | Recordatorio reuniones, control asistencia, notas trimestre, informe mensual | Calculadora de notas offline |
+| Gestión TIC | Inventario equipos | Control de préstamos offline |
+| Convivencia | Cumpleaños alumnos | Registro de incidencias |
+| Alertas | Absentismo acumulado | — |
+| Gestión de recursos/personal | Solicitud material, guardias/sustituciones | — |
+| Calidad | Encuesta satisfacción | — |
+| Herramientas docentes/TIC/Admin | — | Generador contraseñas, sorteo grupos, diario actividad |
+| Mantenimiento | Backup automático | — |
 
 > "Ahora os voy a enseñar cómo funciona esto en la práctica."
 
@@ -61,11 +67,11 @@ Enumerar rápido, SIN detenerse en cada uno:
 
 ## PARTE 2 — DEMO EN DIRECTO (5 minutos)
 
-**Estrategia:** Mostrar 3 workflows que demuestren variedad de triggers y complejidad.
+**Estrategia:** Mostrar 3 workflows que demuestren: un online clásico, un offline sin Internet, y uno con webhook técnico.
 
 ### Demo 1: Email masivo a padres (workflow 01) — 1.5 minutos
 
-**Por qué este:** Es el más visual y fácil de entender. Trigger manual.
+**Por qué este:** Es el más visual y fácil de entender. Trigger manual. Demuestra el modo online.
 
 1. Abrir n8n y mostrar el workflow 01
 2. Señalar la Sticky Note amarilla: "Cada workflow tiene una nota explicativa con instrucciones"
@@ -75,36 +81,46 @@ Enumerar rápido, SIN detenerse en cada uno:
 
 > "Fijaos en que el nodo IF filtra automáticamente las filas sin email. En un listado real siempre hay algún dato que falta, y sin este filtro el workflow fallaría."
 
-### Demo 2: Control de asistencia (workflow 04) — 2 minutos
+### Demo 2: Calculadora de notas OFFLINE (workflow 16) — 2 minutos
 
-**Por qué este:** Usa webhook (concepto técnico potente) + lógica condicional + respuesta al remitente.
+**Por qué este:** Demuestra la gran novedad del proyecto: funcionar sin Internet. Impacto visual de desconectar el WiFi.
+
+1. **Desconectar el WiFi** del portátil (hacerlo visible para el tribunal)
+2. Abrir el workflow 16 en n8n
+3. Explicar: "Este workflow funciona al 100% sin Internet. Los datos se almacenan en la base de datos SQLite interna de n8n, que viaja con el USB"
+4. **Registrar notas** con curl:
+   ```
+   curl -X POST http://localhost:5678/webhook/calcular-notas ^
+     -H "Content-Type: application/json" ^
+     -d "{\"alumno\":\"Maria Garcia\",\"curso\":\"2ESO-A\",\"examen\":7.5,\"trabajo\":8,\"participacion\":9}"
+   ```
+5. Mostrar la respuesta: media ponderada 7.95, calificación "Notable"
+6. **Consultar el histórico** para demostrar que los datos persisten:
+   ```
+   curl -X POST http://localhost:5678/webhook/calcular-notas ^
+     -H "Content-Type: application/json" ^
+     -d "{\"accion\":\"consultar\",\"curso\":\"2ESO-A\"}"
+   ```
+
+> "Sin WiFi, sin Google Sheets, sin nada externo. Todo funciona dentro del contenedor Docker. Esto es lo que hace el sistema verdaderamente portátil: un profesor puede llevarse el USB a un aula sin Internet y seguir trabajando."
+
+7. **Reconectar el WiFi** (para la siguiente demo si la necesitas)
+
+### Demo 3: Control de asistencia online (workflow 04) — 1.5 minutos
+
+**Por qué este:** Usa webhook + lógica condicional + respuesta al remitente. Contrasta con la demo offline.
 
 1. Abrir el workflow 04 en n8n
-2. Explicar: "Este se activa cuando recibe una petición HTTP. Podría venir de una app móvil, de un formulario o de un lector de tarjetas"
-3. **Lanzar una petición de prueba** desde el navegador o curl:
+2. Explicar: "Este se activa cuando recibe una petición HTTP. Podría venir de una app móvil, de un formulario o de un lector de tarjetas. A diferencia del anterior, este sí necesita Internet para guardar en Google Sheets y enviar email"
+3. **Lanzar una petición de prueba**:
    ```
-   curl -X POST http://localhost:5678/webhook/asistencia \
-     -H "Content-Type: application/json" \
-     -d '{"alumno":"María García","curso":"2ESO-A","presente":false,"motivo":"Cita médica"}'
+   curl -X POST http://localhost:5678/webhook/asistencia ^
+     -H "Content-Type: application/json" ^
+     -d "{\"alumno\":\"Maria Garcia\",\"curso\":\"2ESO-A\",\"presente\":false,\"motivo\":\"Cita medica\"}"
    ```
-4. Mostrar cómo el workflow:
-   - Registra la asistencia en Google Sheets
-   - Detecta que es una ausencia
-   - Envía notificación a la familia
-   - Devuelve confirmación JSON al sistema remitente
+4. Mostrar cómo el workflow registra, detecta ausencia, notifica a la familia y devuelve confirmación JSON
 
-> "El webhook devuelve una respuesta estructurada, lo que permite integrarlo con cualquier sistema externo. Y solo envía email a la familia cuando hay una ausencia, para no saturar con notificaciones."
-
-### Demo 3: Backup automático (workflow 07) — 1.5 minutos
-
-**Por qué este:** Demuestra pensamiento de sysadmin (seguridad/mantenimiento) y uso de la API interna de n8n.
-
-1. Abrir el workflow 07
-2. Explicar: "Este se ejecuta cada noche a las 2 AM. Llama a la API interna de n8n para exportar todos los workflows y los sube a Google Drive como copia de seguridad"
-3. **Ejecutar manualmente** para mostrar que genera el archivo JSON
-4. Mostrar el nombre del archivo con la fecha: `backup-n8n-2025-06-XX.json`
-
-> "Si el USB se pierde o el equipo falla, los workflows están a salvo en la nube. Es una capa de seguridad que funciona sola una vez configurada."
+> "La diferencia clave entre estos dos modos: los online se integran con servicios externos y dan más funcionalidad, pero los offline garantizan que el sistema funciona siempre, incluso sin conectividad."
 
 ---
 
@@ -112,12 +128,14 @@ Enumerar rápido, SIN detenerse en cada uno:
 
 ### Resultados (45 segundos)
 
-> "En resumen: el proyecto cumple todos los objetivos que planteé en el anteproyecto. Tenemos una infraestructura Docker portátil que arranca con un script, 10 automatizaciones funcionales que cubren las necesidades reales de un centro educativo, documentación completa, y distribución tanto por USB como por GitHub."
+> "En resumen: el proyecto cumple todos los objetivos que planteé en el anteproyecto y va más allá. Tenemos una infraestructura Docker portátil que arranca con un script, 21 automatizaciones funcionales (15 online y 6 offline) que cubren 8 categorías distintas, documentación completa con diagramas y comparativa tecnológica, y distribución tanto por USB como por GitHub."
 
 Mencionar datos concretos:
-- 10 workflows en 5 categorías
+- 21 workflows en 8 categorías (15 online + 6 offline)
+- 6 workflows 100% offline con SQLite interno
 - 4 scripts multiplataforma con auto-instalación
-- 7 capítulos de memoria + manuales de instalación y uso
+- Comparativa formal: n8n vs Zapier vs Make vs Power Automate
+- 7 capítulos de memoria + diagramas + manuales de instalación y uso
 - Probado en Windows, Linux y macOS
 
 ### Ampliaciones futuras (45 segundos)
@@ -141,7 +159,7 @@ Mencionar solo 3 (las más impactantes):
 
 ### "¿Por qué n8n y no Zapier, Make o Power Automate?"
 
-> "n8n es open source y self-hosted. Eso significa que no depende de un servicio en la nube, no tiene costes de suscripción y funciona sin conexión a Internet (excepto para las integraciones con Google). Para un centro educativo con presupuesto limitado, esto es clave. Además, n8n permite alojar todo en un contenedor Docker, que es lo que hace posible la portabilidad en USB."
+> "En el capítulo 1 de la memoria incluyo una comparativa formal con tabla de criterios. En resumen: n8n es la única plataforma que es open source, self-hosted, y permite funcionar sin Internet. Zapier y Make son solo cloud y tienen costes de suscripción. Power Automate requiere licencia Microsoft. Para un centro educativo con presupuesto ajustado que necesita portabilidad USB, n8n era la única opción viable."
 
 ### "¿Por qué Docker y no una instalación directa de n8n?"
 
@@ -161,7 +179,11 @@ Mencionar solo 3 (las más impactantes):
 
 ### "¿Qué limitaciones tiene el sistema?"
 
-> "La principal es que necesita conexión a Internet para las integraciones con Google (Sheets, Drive, Gmail). Si el equipo no tiene conexión, los workflows que dependen de Google no funcionan. Otra limitación es que SQLite no soporta acceso concurrente desde varios equipos, así que el sistema está pensado para uso individual, no para un servidor compartido."
+> "15 de los 21 workflows necesitan conexión a Internet para las integraciones con Google (Sheets, Drive, Gmail). Si el equipo no tiene conexión, esos workflows no funcionan. Sin embargo, los 6 workflows offline sí funcionan sin Internet, que fue precisamente una de las mejoras que añadí al proyecto. Otra limitación es que SQLite no soporta acceso concurrente desde varios equipos, así que el sistema está pensado para uso individual, no para un servidor compartido."
+
+### "¿Cómo funcionan los workflows offline internamente?"
+
+> "Usan una API de n8n llamada `$getWorkflowStaticData('global')` que permite leer y escribir datos directamente en la base de datos SQLite interna de n8n. Los datos son persistentes: sobreviven reinicios del contenedor y viajan con el USB. Técnicamente es como tener una base de datos clave-valor integrada en el propio motor de automatización, sin necesidad de configurar nada adicional."
 
 ### "¿Qué harías diferente si empezaras de nuevo?"
 
@@ -169,7 +191,7 @@ Mencionar solo 3 (las más impactantes):
 
 ### "¿Se podría usar en un centro real?"
 
-> "Sí, con algunas adaptaciones. Habría que configurar las credenciales con las cuentas reales del centro, ajustar los horarios de los cron jobs al calendario escolar, y posiblemente añadir los emails reales de los profesores y familias en las hojas de cálculo. La infraestructura está lista; lo que falta es la personalización para cada centro concreto."
+> "Sí, con algunas adaptaciones. Habría que configurar las credenciales con las cuentas reales del centro, ajustar los horarios de los cron jobs al calendario escolar, y añadir los emails reales en las hojas de cálculo. Los workflows offline están listos para usarse directamente, sin configuración adicional. La infraestructura está lista; lo que falta es la personalización de datos para cada centro concreto."
 
 ---
 

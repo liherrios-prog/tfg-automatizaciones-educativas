@@ -25,3 +25,29 @@ Las siguientes fuentes han sido consultadas durante el desarrollo del proyecto. 
 [9] Google Developers, "Google Apps Script Overview," Google for Developers, 2024. [En línea]. Disponible en: https://developers.google.com/apps-script/overview. [Acceso: 24-Mar-2025].
 
 [10] Stack Overflow, "Questions tagged [n8n]," Stack Overflow, 2024. [En línea]. Disponible en: https://stackoverflow.com/questions/tagged/n8n. [Acceso: 24-Mar-2025].
+
+## 7.3 Documentación técnica específica
+
+[11] n8n GmbH, "Code node: Built-in methods and variables — Static data," n8n Docs, 2024. [En línea]. Disponible en: https://docs.n8n.io/code/builtin/current-node-methods/. [Acceso: 30-Mar-2025].
+
+[12] Docker Inc., "Bind mounts," Docker Documentation, 2024. [En línea]. Disponible en: https://docs.docker.com/storage/bind-mounts/. [Acceso: 30-Mar-2025].
+
+[13] n8n GmbH, "Webhook node," n8n Docs, 2024. [En línea]. Disponible en: https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/. [Acceso: 30-Mar-2025].
+
+## 7.4 Plataformas comparadas
+
+[14] Zapier Inc., "Zapier — Automation that moves you forward," Zapier, 2024. [En línea]. Disponible en: https://zapier.com/. [Acceso: 30-Mar-2025].
+
+[15] Celonis SE, "Make (formerly Integromat) — Visual automation platform," Make, 2024. [En línea]. Disponible en: https://www.make.com/. [Acceso: 30-Mar-2025].
+
+[16] Microsoft Corporation, "Microsoft Power Automate Documentation," Microsoft Learn, 2024. [En línea]. Disponible en: https://learn.microsoft.com/en-us/power-automate/. [Acceso: 30-Mar-2025].
+
+## 7.5 Referencias académicas y sectoriales
+
+[17] M. Zapata-Ros, "La automatización de procesos administrativos en centros educativos: oportunidades y desafíos," *RED: Revista de Educación a Distancia*, vol. 23, no. 73, 2023. [En línea]. Disponible en: https://revistas.um.es/red/. [Acceso: 30-Mar-2025].
+
+[18] UNESCO, "Tecnología en la educación," *Informe de Seguimiento de la Educación en el Mundo 2023*, París: UNESCO, 2023. [En línea]. Disponible en: https://www.unesco.org/gem-report/es/technology. [Acceso: 30-Mar-2025].
+
+[19] INTEF (Instituto Nacional de Tecnologías Educativas y de Formación del Profesorado), "Marco Común de Competencia Digital Docente," Ministerio de Educación y Formación Profesional, 2022. [En línea]. Disponible en: https://intef.es/formacion-y-colaboracion/digital-docente/. [Acceso: 30-Mar-2025].
+
+[20] R. Knuth, "The Art of Computer Programming, Volume 2: Seminumerical Algorithms — Algorithm P (Shuffling)," 3ª ed. Boston: Addison-Wesley, 1997, pp. 145-146. *Referencia del algoritmo Fisher-Yates utilizado en el workflow 20 (Sorteo de Grupos).*

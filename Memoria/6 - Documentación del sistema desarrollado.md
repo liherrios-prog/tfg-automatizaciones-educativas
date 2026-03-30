@@ -14,8 +14,8 @@
 ### Instalación desde GitHub
 
 ```bash
-git clone https://github.com/USUARIO/REPOSITORIO.git
-cd REPOSITORIO
+git clone https://github.com/liherrios-prog/tfg-automatizaciones-educativas.git
+cd tfg-automatizaciones-educativas
 ```
 
 ### Instalación desde USB
@@ -94,6 +94,10 @@ Para guardar un workflow y compartirlo:
 
 ### Workflows disponibles
 
+El proyecto incluye **21 workflows** organizados en dos modos de funcionamiento. Para una referencia completa con endpoints, dependencias y nodos utilizados, consultar el catálogo en `workflows/CATALOGO.md`.
+
+**Workflows online** (requieren conexión a Internet):
+
 | Workflow | Categoría | Descripción | Trigger |
 |----------|-----------|-------------|---------|
 | 01 - Email Masivo | Comunicaciones | Lee una lista de destinatarios de una hoja de Google Sheets y envía un email personalizado a cada uno con el nombre, curso y el mensaje definido en una plantilla. | Manual (botón ejecutar) |
@@ -111,6 +115,19 @@ Para guardar un workflow y compartirlo:
 | 13 - Solicitud Material | Gestión de recursos | Registra solicitudes de material vía webhook. Las urgentes se notifican inmediatamente al coordinador. | Webhook (POST /solicitud-material) |
 | 14 - Guardias y Sustituciones | Gestión de personal | Asigna sustitutos automáticamente consultando el cuadrante de guardias cuando un profesor comunica su ausencia. | Webhook (POST /ausencia-profesor) |
 | 15 - Encuesta Satisfacción | Calidad | Envía encuestas de satisfacción mensuales a las familias y registra cada envío para seguimiento. | Programado (cron: día 1 de cada mes a las 10:00) |
+
+**Workflows offline** (funcionan sin conexión a Internet):
+
+Estos workflows almacenan los datos en la base de datos SQLite interna de n8n mediante `$getWorkflowStaticData('global')`. No dependen de Google Sheets, SMTP ni ningún servicio externo.
+
+| Workflow | Categoría | Descripción | Trigger |
+|----------|-----------|-------------|---------|
+| 16 - Calculadora de Notas Offline | Gestión académica | Recibe notas por webhook, calcula la media ponderada (50% examen, 30% trabajo, 20% participación) y devuelve la calificación cualitativa. Almacena un histórico consultable. | Webhook (POST /calcular-notas) |
+| 17 - Registro de Incidencias | Convivencia | Registra incidencias de convivencia con tipo (leve, grave, muy grave), alumno, curso y profesor. Permite consultar con filtros y generar resúmenes estadísticos. | Webhook (POST /registro-incidencias) |
+| 18 - Generador de Contraseñas | Herramientas TIC | Recibe una lista de nombres de alumnos y genera un usuario y contraseña segura para cada uno. Excluye caracteres ambiguos. No almacena datos. | Webhook (POST /generar-contrasenas) |
+| 19 - Control de Préstamos Offline | Gestión TIC | Gestiona préstamos y devoluciones de equipos informáticos. Detecta equipos con más de 7 días prestados y los marca con alerta. | Webhook (POST /prestamos-offline) |
+| 20 - Sorteo de Grupos | Herramientas docentes | Reparte una lista de alumnos en grupos aleatorios equilibrados usando el algoritmo Fisher-Yates. No almacena datos. | Webhook (POST /sorteo-grupos) |
+| 21 - Diario de Actividad | Administración | Libro de registro digital del centro con 5 tipos de entrada (evento, incidencia, logro, recordatorio, acta). Soporta búsqueda por texto y resúmenes estadísticos. | Webhook (POST /diario-actividad) |
 
 ### Parar el sistema
 

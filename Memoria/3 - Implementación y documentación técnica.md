@@ -400,6 +400,128 @@ El primer día de cada mes envía automáticamente un enlace a una encuesta de G
 
 **Decisión de diseño**: Este workflow demuestra que las automatizaciones pueden contribuir a la mejora continua del centro. Las encuestas de satisfacción son obligatorias en muchos sistemas de calidad educativa, y automatizar su distribución garantiza que se envían puntualmente sin depender de que alguien se acuerde.
 
+### 3.1.8 Fase 6: Workflows offline (sin conexión a Internet)
+
+Hasta este punto, los 15 workflows anteriores dependen de servicios externos: Google Sheets como base de datos y SMTP para enviar emails. Esto significa que sin conexión a Internet, ninguno de ellos funciona. Para un proyecto que se vende como "portátil en USB", esta es una limitación importante.
+
+En esta fase se crean 6 workflows que funcionan al 100% sin Internet. La clave técnica es el uso de `$getWorkflowStaticData('global')`, una API de n8n que permite almacenar y leer datos directamente en la base de datos SQLite interna. Los datos persisten entre ejecuciones y viajan con el USB junto con el contenedor.
+
+Estos workflows demuestran que n8n puede ser una herramienta completamente autónoma, no solo un orquestador de servicios en la nube.
+
+#### 16 - Calculadora de Notas Offline
+
+**Categoría:** Gestión académica | **Modo:** Offline
+
+Este workflow es la versión offline del workflow 05 (Consolidar Notas del Trimestre). En lugar de leer notas de Google Sheets, las recibe por webhook y las almacena en SQLite interno. La principal diferencia es que todo el ciclo de vida de los datos (entrada, cálculo, almacenamiento y consulta) ocurre dentro del contenedor Docker sin ninguna conexión externa.
+
+**Flujo de ejecución:**
+
+1. **Webhook (POST /calcular-notas)**: Recibe los datos de notas por HTTP. Acepta dos tipos de petición: registrar notas nuevas (con campos `alumno`, `curso`, `examen`, `trabajo`, `participacion`) o consultar el histórico (con `accion: "consultar"`). He usado un único endpoint para ambas operaciones porque simplifica la integración: quien consume la API solo necesita conocer una URL.
+
+2. **Code (Procesar notas o consultar)**: Este es el nodo central del workflow. El código JavaScript:
+   - Lee los datos almacenados con `$getWorkflowStaticData('global')`.
+   - Si la petición es de registro: calcula la media ponderada (examen 50%, trabajo 30%, participación 20%), asigna la calificación cualitativa (Insuficiente, Suficiente, Bien, Notable, Sobresaliente) y guarda el registro con timestamp.
+   - Si la petición es de consulta: recupera el histórico y opcionalmente lo filtra por curso.
+   - Devuelve el resultado formateado como JSON.
+
+3. **Respond to Webhook**: Devuelve la respuesta JSON con la nota calculada o el histórico solicitado.
+
+**Decisión de diseño**: He elegido `$getWorkflowStaticData('global')` en lugar de leer/escribir archivos JSON locales porque la API de static data es atómica (no hay riesgo de corrupción por escrituras concurrentes) y los datos se almacenan en la misma base de datos SQLite que usa n8n internamente, lo que garantiza que viajan con el contenedor.
+
+#### 17 - Registro de Incidencias Offline
+
+**Categoría:** Convivencia | **Modo:** Offline
+
+Permite registrar y consultar incidencias de convivencia sin depender de Google Sheets. Cada incidencia queda almacenada con fecha, tipo (leve, grave, muy grave), alumno, curso y profesor que la reporta. El workflow también genera resúmenes estadísticos por tipo y por curso.
+
+**Flujo de ejecución:**
+
+1. **Webhook (POST /registro-incidencias)**: Recibe tres tipos de petición: registrar una nueva incidencia, consultar incidencias con filtros, o generar un resumen estadístico.
+
+2. **Code (Gestionar incidencias)**: El código JavaScript implementa un CRUD completo:
+   - **Registrar**: Valida que el tipo sea uno de los permitidos (`leve`, `grave`, `muy_grave`), genera un ID único y un timestamp, y almacena la incidencia en `staticData`.
+   - **Consultar**: Recupera las incidencias y aplica filtros opcionales por curso, alumno, tipo o rango de fechas. Los filtros se combinan (AND lógico).
+   - **Resumen**: Calcula estadísticas: total de incidencias, desglose por tipo (porcentaje de leves, graves y muy graves), desglose por curso, y los 3 cursos con más incidencias.
+
+3. **Respond to Webhook**: Devuelve el resultado correspondiente a la acción solicitada.
+
+**Decisión de diseño**: He implementado el filtrado y las estadísticas directamente en el nodo Code porque no existen nodos nativos de n8n para consultar datos estructurados en staticData. En un sistema con base de datos SQL se usarían queries, pero aquí el Code actúa como un mini motor de consultas sobre un array JSON.
+
+#### 18 - Generador de Contraseñas para Alumnos
+
+**Categoría:** Herramientas TIC | **Modo:** Offline
+
+Herramienta práctica para el coordinador TIC del centro. Recibe una lista de nombres de alumnos y genera un usuario y contraseña segura para cada uno. Útil para crear cuentas en plataformas internas, laboratorios o equipos compartidos. No almacena datos: genera las credenciales en el momento y las devuelve.
+
+**Flujo de ejecución:**
+
+1. **Webhook (POST /generar-contrasenas)**: Recibe un array de nombres de alumnos y opcionalmente la longitud deseada de la contraseña (por defecto 12 caracteres).
+
+2. **Code (Generar credenciales)**: Para cada alumno:
+   - Genera un nombre de usuario basado en el nombre (primera letra del nombre + apellido, en minúsculas, sin acentos ni caracteres especiales).
+   - Genera una contraseña aleatoria que incluye mayúsculas, minúsculas, números y símbolos. Se excluyen caracteres ambiguos (0, O, l, I, 1) para evitar confusiones al teclearlas.
+   - Devuelve el listado completo en formato JSON.
+
+3. **Respond to Webhook**: Devuelve el array de credenciales generadas.
+
+**Decisión de diseño**: Este workflow no usa `staticData` porque no tiene sentido almacenar contraseñas generadas (sería un riesgo de seguridad). Las credenciales se generan, se entregan y no se persisten. Si el usuario necesita guardarlas, puede copiar la respuesta JSON a un archivo o imprimirla.
+
+#### 19 - Control de Préstamos de Material Offline
+
+**Categoría:** Gestión TIC | **Modo:** Offline
+
+Versión offline del workflow 09 (Gestión de Inventario TIC). Gestiona préstamos y devoluciones de equipos informáticos (portátiles, tablets, proyectores) sin depender de Google Sheets. Además, detecta equipos que llevan más de 7 días prestados y los marca como "alerta" en las consultas.
+
+**Flujo de ejecución:**
+
+1. **Webhook (POST /prestamos-offline)**: Acepta tres acciones: prestar un equipo, registrar una devolución o consultar el estado del inventario.
+
+2. **Code (Gestionar préstamos)**: El código maneja tres operaciones:
+   - **Prestar**: Registra el préstamo con equipo, profesor, fecha y estado "prestado". Si el equipo ya está prestado, devuelve un error.
+   - **Devolver**: Busca el préstamo activo del equipo, lo marca como "devuelto" y registra la fecha de devolución.
+   - **Consultar**: Lista todos los préstamos activos, calcula los días transcurridos desde cada préstamo y marca con una alerta los que superan los 7 días.
+
+3. **Respond to Webhook**: Devuelve el resultado de la operación.
+
+**Decisión de diseño**: He añadido la alerta de 7 días porque en un centro educativo es habitual que un profesor pida un portátil "para una clase" y lo devuelva semanas después. La alerta no bloquea nada, simplemente informa al coordinador TIC de qué equipos llevan demasiado tiempo fuera.
+
+#### 20 - Sorteo y Asignación de Grupos
+
+**Categoría:** Herramientas docentes | **Modo:** Offline
+
+Herramienta para formar equipos de trabajo de forma aleatoria y equilibrada. Recibe una lista de alumnos y un número de grupos, y reparte los alumnos usando el algoritmo Fisher-Yates para garantizar una distribución verdaderamente aleatoria. No almacena datos.
+
+**Flujo de ejecución:**
+
+1. **Webhook (POST /sorteo-grupos)**: Recibe un array de nombres de alumnos y opcionalmente el número de grupos deseado (por defecto 2).
+
+2. **Code (Sortear y distribuir)**: El código implementa:
+   - **Fisher-Yates shuffle**: Baraja el array de alumnos de forma aleatoria. He elegido este algoritmo porque es el estándar para permutaciones imparciales: cada posible ordenación tiene la misma probabilidad. Un `sort(() => Math.random() - 0.5)` parece funcionar pero tiene sesgo estadístico demostrable.
+   - **Distribución round-robin**: Asigna los alumnos barajados a los grupos de forma circular (alumno 1 al grupo 1, alumno 2 al grupo 2, etc., y vuelta a empezar). Esto garantiza que la diferencia de tamaño entre grupos sea como máximo de 1 alumno.
+
+3. **Respond to Webhook**: Devuelve los grupos formados con sus miembros.
+
+**Decisión de diseño**: El workflow no persiste los grupos generados porque cada ejecución es un sorteo independiente. Si el profesor necesita repetir el mismo sorteo (por ejemplo, para grupos estables durante un trimestre), puede guardar la respuesta JSON. Hacer que el workflow almacene grupos añadiría complejidad sin un caso de uso claro.
+
+#### 21 - Diario de Actividad del Centro
+
+**Categoría:** Administración | **Modo:** Offline
+
+Actúa como un libro de registro digital del centro educativo. Permite anotar eventos, incidencias, logros, recordatorios y actas. A diferencia del workflow 17 (Registro de Incidencias), que se centra en convivencia, este es un registro generalista: cualquier cosa relevante que ocurra en el centro puede anotarse aquí.
+
+**Flujo de ejecución:**
+
+1. **Webhook (POST /diario-actividad)**: Acepta tres acciones: registrar una nueva entrada, consultar entradas (con filtros por tipo, fecha o búsqueda de texto) o generar un resumen estadístico.
+
+2. **Code (Gestionar diario)**: El código implementa:
+   - **Registrar**: Almacena la entrada con tipo (`evento`, `incidencia`, `logro`, `recordatorio`, `acta`), título, descripción, responsable y timestamp automático.
+   - **Consultar**: Recupera entradas con filtros combinables: por tipo, por rango de fechas, o por búsqueda de texto libre en título y descripción (búsqueda case-insensitive).
+   - **Resumen**: Genera estadísticas del diario: total de entradas, desglose por tipo, entradas de los últimos 7 y 30 días, y las 5 entradas más recientes.
+
+3. **Respond to Webhook**: Devuelve el resultado correspondiente.
+
+**Decisión de diseño**: He incluido 5 tipos de entrada en lugar de texto libre para poder generar estadísticas significativas. Los tipos cubren el espectro de lo que un centro educativo registra: eventos (excursiones, celebraciones), incidencias (averías, problemas), logros (premios, reconocimientos), recordatorios (plazos, entregas) y actas (reuniones, claustros).
+
 ## 3.2 Documentación técnica
 
 ### 3.2.1 Estructura del proyecto
@@ -414,8 +536,10 @@ proyecto/
 │   ├── start.sh                # Arranque en Linux/macOS
 │   ├── stop.bat                # Parada en Windows
 │   └── stop.sh                 # Parada en Linux/macOS
-├── workflows/                  # Workflows exportados en formato JSON
-│   └── (archivos .json)
+├── workflows/
+│   ├── CATALOGO.md             # Catálogo organizado de los 21 workflows
+│   ├── 01 a 15 (*.json)       # Workflows online (requieren Internet)
+│   └── 16 a 21 (*.json)       # Workflows offline (funcionan sin Internet)
 ├── n8n-data/                   # Datos persistentes de n8n (no se sube a GitHub)
 │   └── database.sqlite         # Base de datos con workflows y configuración
 └── Memoria/                    # Documentación del proyecto
@@ -444,7 +568,9 @@ proyecto/
 
 ### 3.2.4 Workflows implementados
 
-La siguiente tabla resume los quince workflows desarrollados en el proyecto:
+La siguiente tabla resume los veintiún workflows desarrollados en el proyecto, separados por modo de funcionamiento.
+
+**Workflows online** (requieren conexión a Internet):
 
 | Workflow | Categoría | Descripción breve | Trigger | Nodos principales |
 |----------|-----------|-------------------|---------|-------------------|
@@ -464,4 +590,15 @@ La siguiente tabla resume los quince workflows desarrollados en el proyecto:
 | 14 - Gestión de Guardias y Sustituciones | Gestión de personal | Asigna sustitutos automáticamente consultando el cuadrante de guardias | Webhook POST `/ausencia-profesor` | Set, Google Sheets, Code, Google Sheets, IF, Send Email x2, Respond to Webhook |
 | 15 - Encuesta de Satisfacción Automatizada | Calidad | Envía encuestas mensuales a las familias y registra los envíos | Schedule Trigger (`0 10 1 * *`) | Google Sheets, IF, Code, Send Email, Google Sheets |
 
-Todos los workflows se exportan en formato JSON y se almacenan en la carpeta `workflows/` del proyecto. Esto permite importarlos en cualquier instancia de n8n sin necesidad de recrearlos manualmente, lo que refuerza el objetivo de portabilidad del proyecto.
+**Workflows offline** (funcionan sin conexión a Internet):
+
+| Workflow | Categoría | Descripción breve | Trigger | Nodos principales | Almacenamiento |
+|----------|-----------|-------------------|---------|-------------------|----------------|
+| 16 - Calculadora de Notas Offline | Gestión académica | Calcula medias ponderadas y almacena histórico de notas | Webhook POST `/calcular-notas` | Code, Respond to Webhook | SQLite (staticData) |
+| 17 - Registro de Incidencias Offline | Convivencia | Registra y consulta incidencias con filtros y estadísticas | Webhook POST `/registro-incidencias` | Code, Respond to Webhook | SQLite (staticData) |
+| 18 - Generador de Contraseñas | Herramientas TIC | Genera usuarios y contraseñas seguras para listas de alumnos | Webhook POST `/generar-contrasenas` | Code, Respond to Webhook | Sin estado |
+| 19 - Control de Préstamos Offline | Gestión TIC | Gestiona préstamos/devoluciones con alertas de retraso | Webhook POST `/prestamos-offline` | Code, Respond to Webhook | SQLite (staticData) |
+| 20 - Sorteo de Grupos | Herramientas docentes | Reparte alumnos en grupos aleatorios equilibrados | Webhook POST `/sorteo-grupos` | Code, Respond to Webhook | Sin estado |
+| 21 - Diario de Actividad del Centro | Administración | Libro de registro digital con búsqueda y resúmenes | Webhook POST `/diario-actividad` | Code, Respond to Webhook | SQLite (staticData) |
+
+Todos los workflows se exportan en formato JSON y se almacenan en la carpeta `workflows/` del proyecto. Esto permite importarlos en cualquier instancia de n8n sin necesidad de recrearlos manualmente, lo que refuerza el objetivo de portabilidad del proyecto. El catálogo completo con clasificación detallada está disponible en `workflows/CATALOGO.md`.
