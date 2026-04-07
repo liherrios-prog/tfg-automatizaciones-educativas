@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Workflows - n8n Educativo</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --border: #334155; --text: #e2e8f0;
+    --muted: #94a3b8; --accent: #3b82f6; --accent-hover: #2563eb;
+    --success: #22c55e; --error: #ef4444; --warning: #f59e0b;
+    --radius: 8px; --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 280px; background: var(--surface); border-right: 1px solid var(--border);
+    padding: 16px 0; overflow-y: auto; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+  }
+  .sidebar h1 { font-size: 16px; padding: 0 16px 12px; color: var(--accent); border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .sidebar h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 12px 16px 6px; }
+  .sidebar button {
+    display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text);
+    padding: 8px 16px; cursor: pointer; font-size: 13px; transition: background 0.15s;
+  }
+  .sidebar button:hover { background: rgba(59,130,246,0.1); }
+  .sidebar button.active { background: rgba(59,130,246,0.15); color: var(--accent); border-left: 3px solid var(--accent); }
+  .sidebar .badge {
+    display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px; margin-left: 6px;
+  }
+  .badge-offline { background: rgba(34,197,94,0.2); color: var(--success); }
+  .badge-online { background: rgba(59,130,246,0.2); color: var(--accent); }
+
+  /* Main */
+  .main { flex: 1; padding: 32px; max-width: 800px; }
+  .main h2 { font-size: 22px; margin-bottom: 4px; }
+  .main .desc { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+
+  /* Forms */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text); font-size: 14px; font-family: var(--font);
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+  }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-group .hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .form-row { display: flex; gap: 12px; }
+  .form-row .form-group { flex: 1; }
+
+  /* Action tabs */
+  .action-tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+  .action-tabs button {
+    padding: 6px 14px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--muted); cursor: pointer; font-size: 13px;
+  }
+  .action-tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 24px; border: none; border-radius: var(--radius); cursor: pointer;
+    font-size: 14px; font-weight: 600; transition: background 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-danger { background: var(--error); color: #fff; }
+
+  /* Response */
+  .response {
+    margin-top: 24px; padding: 16px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); display: none;
+  }
+  .response.show { display: block; }
+  .response h3 { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .response pre {
+    background: var(--bg); padding: 12px; border-radius: var(--radius); overflow-x: auto;
+    font-size: 13px; line-height: 1.5; white-space: pre-wrap;
+  }
+  .response .status-ok { color: var(--success); }
+  .response .status-error { color: var(--error); }
+  .response .status-loading { color: var(--warning); }
+
+  /* Results table */
+  .result-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  .result-table th, .result-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .result-table th { color: var(--muted); font-weight: 600; }
+
+  /* Welcome */
+  .welcome { text-align: center; padding: 80px 40px; }
+  .welcome h2 { font-size: 28px; margin-bottom: 12px; }
+  .welcome p { color: var(--muted); max-width: 500px; margin: 0 auto 24px; line-height: 1.6; }
+  .welcome .cards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+  .welcome .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; width: 200px; text-align: center;
+  }
+  .welcome .card h3 { font-size: 32px; color: var(--accent); }
+  .welcome .card p { font-size: 13px; margin: 0; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    body { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; display: flex; flex-wrap: wrap; padding: 8px; }
+    .sidebar h1, .sidebar h2 { width: 100%; }
+    .sidebar button { width: auto; }
+    .main { padding: 16px; }
+    .form-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <h1>n8n Educativo</h1>
+  <h2>Offline (sin Internet)</h2>
+  <button onclick="showPanel('wf16')">16 - Calculadora Notas <span class="badge badge-offline">offline</span></button>
+  <button onclick="showPanel('wf17')">17 - Incidencias <span class="badge badge-offline">offline</span></button>
+  <button onclick="showPanel('wf18')">18 - Contrasenas <span class="badge badge-offline">offline</span></button>
+  <button onclick="showPanel('wf19')">19 - Prestamos <span class="badge badge-offline">offline</span></button>
+  <button onclick="showPanel('wf20')">20 - Sorteo Grupos <span class="badge badge-offline">offline</span></button>
+  <button onclick="showPanel('wf21')">21 - Diario <span class="badge badge-offline">offline</span></button>
+  <h2>Online (con Internet)</h2>
+  <button onclick="showPanel('wf04')">04 - Asistencia <span class="badge badge-online">online</span></button>
+  <button onclick="showPanel('wf09')">09 - Inventario TIC <span class="badge badge-online">online</span></button>
+  <button onclick="showPanel('wf13')">13 - Solicitud Material <span class="badge badge-online">online</span></button>
+  <button onclick="showPanel('wf14')">14 - Guardias <span class="badge badge-online">online</span></button>
+</nav>
+
+<div class="main" id="content">
+  <!-- Welcome -->
+  <div id="welcome" class="welcome">
+    <h2>Panel de Workflows</h2>
+    <p>Interfaz visual para los workflows de n8n. Selecciona un workflow del menu lateral para empezar.</p>
+    <p style="font-size:13px; color:var(--warning)">Requisito: n8n debe estar corriendo en <strong>http://localhost:5678</strong></p>
+    <div class="cards">
+      <div class="card"><h3>6</h3><p>Workflows offline</p></div>
+      <div class="card"><h3>4</h3><p>Workflows online</p></div>
+      <div class="card"><h3>10</h3><p>Formularios listos</p></div>
+    </div>
+  </div>
+
+  <!-- WF16 -->
+  <div id="wf16" class="panel" style="display:none">
+    <h2>16 - Calculadora de Notas Offline</h2>
+    <p class="desc">Calcula la media ponderada y guarda un historico consultable. Ponderacion: Examen 50%, Trabajo 30%, Participacion 20%.</p>
+    <div class="action-tabs">
+      <button class="active" onclick="switchTab('wf16','registrar')">Registrar notas</button>
+      <button onclick="switchTab('wf16','consultar')">Consultar historico</button>
+    </div>
+    <form id="wf16-registrar" onsubmit="return sendForm(event, 'calcular-notas', ['alumno','curso','examen','trabajo','participacion'], {examen:'number',trabajo:'number',participacion:'number'})">
+      <div class="form-row">
+        <div class="form-group"><label>Alumno</label><input name="alumno" placeholder="Maria Garcia" required></div>
+        <div class="form-group"><label>Curso</label><input name="curso" placeholder="2ESO-A" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Examen (0-10)</label><input name="examen" type="number" step="0.1" min="0" max="10" placeholder="7.5" required></div>
+        <div class="form-group"><label>Trabajo (0-10)</label><input name="trabajo" type="number" step="0.1" min="0" max="10" placeholder="8" required></div>
+        <div class="form-group"><label>Participacion (0-10)</label><input name="participacion" type="number" step="0.1" min="0" max="10" placeholder="9" required></div>
+      </div>
+      <button type="submit" class="btn btn-primary">Calcular y guardar</button>
+    </form>
+    <form id="wf16-consultar" style="display:none" onsubmit="return sendForm(event, 'calcular-notas', ['accion','curso'], {}, {accion:'consultar'})">
+      <div class="form-group"><label>Filtrar por curso (opcional)</label><input name="curso" placeholder="2ESO-A (dejar vacio para ver todos)"></div>
+      <button type="submit" class="btn btn-primary">Consultar</button>
+    </form>
+    <div id="wf16-response" class="response"></div>
+  </div>
+
+  <!-- WF17 -->
+  <div id="wf17" class="panel" style="display:none">
+    <h2>17 - Registro de Incidencias Offline</h2>
+    <p class="desc">Registra y consulta incidencias de convivencia con filtros y estadisticas.</p>
+    <div class="action-tabs">
+      <button class="active" onclick="switchTab('wf17','registrar')">Registrar</button>
+      <button onclick="switchTab('wf17','consultar')">Consultar</button>
+    </div>
+    <form id="wf17-registrar" onsubmit="return sendForm(event, 'registro-incidencias', ['alumno','curso','tipo','descripcion','reportado_por'])">
+      <div class="form-row">
+        <div class="form-group"><label>Alumno</label><input name="alumno" placeholder="Carlos Lopez" required></div>
+        <div class="form-group"><label>Curso</label><input name="curso" placeholder="3ESO-B" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo</label>
+          <select name="tipo" required><option value="leve">Leve</option><option value="grave">Grave</option><option value="muy_grave">Muy grave</option></select>
+        </div>
+        <div class="form-group"><label>Reportado por</label><input name="reportado_por" placeholder="Prof. Martinez" required></div>
+      </div>
+      <div class="form-group"><label>Descripcion</label><textarea name="descripcion" placeholder="Descripcion de la incidencia..." required></textarea></div>
+      <button type="submit" class="btn btn-primary">Registrar incidencia</button>
+    </form>
+    <form id="wf17-consultar" style="display:none" onsubmit="return sendForm(event, 'registro-incidencias', ['accion','curso','tipo'], {}, {accion:'consultar'})">
+      <div class="form-row">
+        <div class="form-group"><label>Filtrar por curso (opcional)</label><input name="curso" placeholder="3ESO-B"></div>
+        <div class="form-group">
+          <label>Filtrar por tipo (opcional)</label>
+          <select name="tipo"><option value="">Todos</option><option value="leve">Leve</option><option value="grave">Grave</option><option value="muy_grave">Muy grave</option></select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Consultar</button>
+    </form>
+    <div id="wf17-response" class="response"></div>
+  </div>
+
+  <!-- WF18 -->
+  <div id="wf18" class="panel" style="display:none">
+    <h2>18 - Generador de Contrasenas</h2>
+    <p class="desc">Genera usuarios y contrasenas seguras para una lista de alumnos. No almacena datos.</p>
+    <form onsubmit="return sendWf18(event)">
+      <div class="form-group">
+        <label>Lista de alumnos (uno por linea)</label>
+        <textarea id="wf18-alumnos" rows="6" placeholder="Maria Garcia&#10;Carlos Lopez&#10;Ana Martinez" required></textarea>
+      </div>
+      <div class="form-group"><label>Longitud de contrasena</label><input id="wf18-longitud" type="number" min="4" max="50" value="12"></div>
+      <button type="submit" class="btn btn-primary">Generar credenciales</button>
+    </form>
+    <div id="wf18-response" class="response"></div>
+  </div>
+
+  <!-- WF19 -->
+  <div id="wf19" class="panel" style="display:none">
+    <h2>19 - Control de Prestamos Offline</h2>
+    <p class="desc">Gestiona prestamos y devoluciones de equipos. Alerta si un equipo lleva mas de 7 dias prestado.</p>
+    <div class="action-tabs">
+      <button class="active" onclick="switchTab('wf19','prestar')">Prestar</button>
+      <button onclick="switchTab('wf19','devolver')">Devolver</button>
+      <button onclick="switchTab('wf19','consultar')">Inventario</button>
+    </div>
+    <form id="wf19-prestar" onsubmit="return sendForm(event, 'prestamos-offline', ['accion','equipo','profesor'], {}, {accion:'prestar'})">
+      <div class="form-row">
+        <div class="form-group"><label>Equipo</label><input name="equipo" placeholder="PORTATIL-012" required></div>
+        <div class="form-group"><label>Profesor</label><input name="profesor" placeholder="Garcia" required></div>
+      </div>
+      <button type="submit" class="btn btn-primary">Registrar prestamo</button>
+    </form>
+    <form id="wf19-devolver" style="display:none" onsubmit="return sendForm(event, 'prestamos-offline', ['accion','equipo'], {}, {accion:'devolver'})">
+      <div class="form-group"><label>Equipo a devolver</label><input name="equipo" placeholder="PORTATIL-012" required></div>
+      <button type="submit" class="btn btn-primary">Registrar devolucion</button>
+    </form>
+    <form id="wf19-consultar" style="display:none" onsubmit="return sendFixed(event, 'prestamos-offline', {accion:'consultar'})">
+      <button type="submit" class="btn btn-primary">Ver inventario</button>
+    </form>
+    <div id="wf19-response" class="response"></div>
+  </div>
+
+  <!-- WF20 -->
+  <div id="wf20" class="panel" style="display:none">
+    <h2>20 - Sorteo y Asignacion de Grupos</h2>
+    <p class="desc">Reparte alumnos en grupos aleatorios equilibrados. Cada ejecucion genera una distribucion diferente.</p>
+    <form onsubmit="return sendWf20(event)">
+      <div class="form-group">
+        <label>Lista de alumnos (uno por linea)</label>
+        <textarea id="wf20-alumnos" rows="6" placeholder="Maria&#10;Carlos&#10;Ana&#10;Pedro&#10;Lucia&#10;Jorge" required></textarea>
+      </div>
+      <div class="form-group"><label>Numero de grupos</label><input id="wf20-grupos" type="number" min="2" max="20" value="2"></div>
+      <button type="submit" class="btn btn-primary">Sortear grupos</button>
+    </form>
+    <div id="wf20-response" class="response"></div>
+  </div>
+
+  <!-- WF21 -->
+  <div id="wf21" class="panel" style="display:none">
+    <h2>21 - Diario de Actividad del Centro</h2>
+    <p class="desc">Libro de registro digital con 5 tipos de entrada: evento, incidencia, logro, recordatorio, acta.</p>
+    <div class="action-tabs">
+      <button class="active" onclick="switchTab('wf21','registrar')">Registrar</button>
+      <button onclick="switchTab('wf21','consultar')">Consultar</button>
+      <button onclick="switchTab('wf21','resumen')">Resumen</button>
+    </div>
+    <form id="wf21-registrar" onsubmit="return sendForm(event, 'diario-actividad', ['tipo','titulo','descripcion','responsable'])">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo</label>
+          <select name="tipo" required>
+            <option value="evento">Evento</option><option value="incidencia">Incidencia</option>
+            <option value="logro">Logro</option><option value="recordatorio">Recordatorio</option><option value="acta">Acta</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Responsable</label><input name="responsable" placeholder="Prof. Lopez"></div>
+      </div>
+      <div class="form-group"><label>Titulo</label><input name="titulo" placeholder="Excursion al museo" required></div>
+      <div class="form-group"><label>Descripcion</label><textarea name="descripcion" placeholder="Detalle de la entrada..." required></textarea></div>
+      <button type="submit" class="btn btn-primary">Registrar entrada</button>
+    </form>
+    <form id="wf21-consultar" style="display:none" onsubmit="return sendForm(event, 'diario-actividad', ['accion','buscar','tipo'], {}, {accion:'consultar'})">
+      <div class="form-row">
+        <div class="form-group"><label>Buscar texto (opcional)</label><input name="buscar" placeholder="museo"></div>
+        <div class="form-group">
+          <label>Filtrar por tipo (opcional)</label>
+          <select name="tipo"><option value="">Todos</option><option value="evento">Evento</option><option value="incidencia">Incidencia</option><option value="logro">Logro</option><option value="recordatorio">Recordatorio</option><option value="acta">Acta</option></select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Consultar</button>
+    </form>
+    <form id="wf21-resumen" style="display:none" onsubmit="return sendFixed(event, 'diario-actividad', {accion:'resumen'})">
+      <button type="submit" class="btn btn-primary">Ver resumen estadistico</button>
+    </form>
+    <div id="wf21-response" class="response"></div>
+  </div>
+
+  <!-- WF04 -->
+  <div id="wf04" class="panel" style="display:none">
+    <h2>04 - Control de Asistencia Diario</h2>
+    <p class="desc">Registra asistencia y notifica a la familia si el alumno esta ausente. <strong>Requiere Google Sheets + SMTP configurados en n8n.</strong></p>
+    <form onsubmit="return sendForm(event, 'asistencia', ['alumno','curso','presente','motivo_ausencia'], {presente:'boolean'})">
+      <div class="form-row">
+        <div class="form-group"><label>Alumno</label><input name="alumno" placeholder="Maria Garcia" required></div>
+        <div class="form-group"><label>Curso</label><input name="curso" placeholder="2ESO-A" required></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Presente</label>
+          <select name="presente" required><option value="true">Si</option><option value="false">No (ausente)</option></select>
+        </div>
+        <div class="form-group"><label>Motivo de ausencia</label><input name="motivo_ausencia" placeholder="Cita medica (solo si ausente)"></div>
+      </div>
+      <button type="submit" class="btn btn-primary">Registrar asistencia</button>
+    </form>
+    <div id="wf04-response" class="response"></div>
+  </div>
+
+  <!-- WF09 -->
+  <div id="wf09" class="panel" style="display:none">
+    <h2>09 - Gestion de Inventario TIC</h2>
+    <p class="desc">Registra prestamos y devoluciones en Google Sheets. <strong>Requiere Google Sheets configurado en n8n.</strong></p>
+    <div class="action-tabs">
+      <button class="active" onclick="switchTab('wf09','prestar')">Prestar</button>
+      <button onclick="switchTab('wf09','devolver')">Devolver</button>
+    </div>
+    <form id="wf09-prestar" onsubmit="return sendForm(event, 'inventario-tic', ['accion','equipo','profesor'], {}, {accion:'prestar'})">
+      <div class="form-row">
+        <div class="form-group"><label>Equipo</label><input name="equipo" placeholder="PORTATIL-012" required></div>
+        <div class="form-group"><label>Profesor</label><input name="profesor" placeholder="Garcia" required></div>
+      </div>
+      <button type="submit" class="btn btn-primary">Registrar prestamo</button>
+    </form>
+    <form id="wf09-devolver" style="display:none" onsubmit="return sendForm(event, 'inventario-tic', ['accion','equipo'], {}, {accion:'devolver'})">
+      <div class="form-group"><label>Equipo a devolver</label><input name="equipo" placeholder="PORTATIL-012" required></div>
+      <button type="submit" class="btn btn-primary">Registrar devolucion</button>
+    </form>
+    <div id="wf09-response" class="response"></div>
+  </div>
+
+  <!-- WF13 -->
+  <div id="wf13" class="panel" style="display:none">
+    <h2>13 - Solicitud de Material y Recursos</h2>
+    <p class="desc">Solicita material al coordinador. Si la urgencia es alta, se envia email inmediato. <strong>Requiere Google Sheets + SMTP.</strong></p>
+    <form onsubmit="return sendForm(event, 'solicitud-material', ['profesor','tipo','descripcion','urgencia'])">
+      <div class="form-row">
+        <div class="form-group"><label>Profesor</label><input name="profesor" placeholder="Garcia" required></div>
+        <div class="form-group">
+          <label>Tipo de material</label>
+          <select name="tipo" required>
+            <option value="fotocopias">Fotocopias</option><option value="laboratorio">Laboratorio</option>
+            <option value="aula">Reserva de aula</option><option value="informatica">Informatica</option><option value="otro">Otro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Descripcion</label><textarea name="descripcion" placeholder="50 copias del examen de Tema 5" required></textarea></div>
+      <div class="form-group">
+        <label>Urgencia</label>
+        <select name="urgencia" required><option value="baja">Baja</option><option value="media" selected>Media</option><option value="alta">Alta</option></select>
+      </div>
+      <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+    </form>
+    <div id="wf13-response" class="response"></div>
+  </div>
+
+  <!-- WF14 -->
+  <div id="wf14" class="panel" style="display:none">
+    <h2>14 - Gestion de Guardias y Sustituciones</h2>
+    <p class="desc">Comunica una ausencia y el sistema busca un sustituto automaticamente. <strong>Requiere Google Sheets + SMTP.</strong></p>
+    <form onsubmit="return sendForm(event, 'ausencia-profesor', ['profesor','motivo','franja_horaria'])">
+      <div class="form-row">
+        <div class="form-group"><label>Profesor ausente</label><input name="profesor" placeholder="Garcia" required></div>
+        <div class="form-group">
+          <label>Franja horaria</label>
+          <select name="franja_horaria" required>
+            <option value="1a">1a hora</option><option value="2a">2a hora</option><option value="3a">3a hora</option>
+            <option value="4a">4a hora</option><option value="5a">5a hora</option><option value="6a">6a hora</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Motivo</label><input name="motivo" placeholder="Cita medica" required></div>
+      <button type="submit" class="btn btn-primary">Comunicar ausencia</button>
+    </form>
+    <div id="wf14-response" class="response"></div>
+  </div>
+</div>
+
+<script>
+const BASE = 'http://localhost:5678/webhook';
+
+function showPanel(id) {
+  document.getElementById('welcome').style.display = 'none';
+  document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+  document.getElementById(id).style.display = 'block';
+  document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
+  event.target.closest('button').classList.add('active');
+  // Reset tabs to first
+  const panel = document.getElementById(id);
+  const tabs = panel.querySelectorAll('.action-tabs button');
+  if (tabs.length) {
+    tabs.forEach((t,i) => t.classList.toggle('active', i===0));
+    const forms = panel.querySelectorAll('form');
+    forms.forEach((f,i) => f.style.display = i===0 ? 'block' : 'none');
+  }
+}
+
+function switchTab(panelId, tabName) {
+  const panel = document.getElementById(panelId);
+  panel.querySelectorAll('.action-tabs button').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(tabName.slice(0,5)));
+  });
+  panel.querySelectorAll('form').forEach(f => {
+    f.style.display = f.id.includes(tabName) ? 'block' : 'none';
+  });
+}
+
+function showResponse(panelId, data, isError) {
+  const el = document.getElementById(panelId + '-response');
+  const statusClass = isError ? 'status-error' : 'status-ok';
+  const label = isError ? 'Error' : 'Respuesta correcta';
+  el.innerHTML = `<h3 class="${statusClass}">${label}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+  el.classList.add('show');
+}
+
+function showLoading(panelId) {
+  const el = document.getElementById(panelId + '-response');
+  el.innerHTML = '<h3 class="status-loading">Enviando...</h3>';
+  el.classList.add('show');
+}
+
+async function postWebhook(endpoint, body) {
+  const res = await fetch(`${BASE}/${endpoint}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  return await res.json();
+}
+
+function sendForm(event, endpoint, fields, types, fixed) {
+  event.preventDefault();
+  const form = event.target;
+  const panelId = form.closest('.panel').id;
+  const body = {...(fixed || {})};
+  for (const name of fields) {
+    if (fixed && name in fixed) continue;
+    const el = form.elements[name];
+    if (!el) continue;
+    let val = el.value.trim();
+    if (!val) continue;
+    if (types && types[name] === 'number') val = parseFloat(val);
+    if (types && types[name] === 'boolean') val = val === 'true';
+    body[name] = val;
+  }
+  showLoading(panelId);
+  postWebhook(endpoint, body)
+    .then(data => showResponse(panelId, data, data.status === 'error'))
+    .catch(err => showResponse(panelId, {error: err.message, hint: 'Verifica que n8n esta corriendo y el workflow esta activado'}, true));
+  return false;
+}
+
+function sendFixed(event, endpoint, body) {
+  event.preventDefault();
+  const panelId = event.target.closest('.panel').id;
+  showLoading(panelId);
+  postWebhook(endpoint, body)
+    .then(data => showResponse(panelId, data, data.status === 'error'))
+    .catch(err => showResponse(panelId, {error: err.message, hint: 'Verifica que n8n esta corriendo y el workflow esta activado'}, true));
+  return false;
+}
+
+function sendWf18(event) {
+  event.preventDefault();
+  const alumnos = document.getElementById('wf18-alumnos').value.trim().split('\n').filter(l => l.trim());
+  const longitud = parseInt(document.getElementById('wf18-longitud').value) || 12;
+  showLoading('wf18');
+  postWebhook('generar-contrasenas', {alumnos, longitud})
+    .then(data => showResponse('wf18', data, data.status === 'error'))
+    .catch(err => showResponse('wf18', {error: err.message}, true));
+  return false;
+}
+
+function sendWf20(event) {
+  event.preventDefault();
+  const alumnos = document.getElementById('wf20-alumnos').value.trim().split('\n').filter(l => l.trim());
+  const num_grupos = parseInt(document.getElementById('wf20-grupos').value) || 2;
+  showLoading('wf20');
+  postWebhook('sorteo-grupos', {alumnos, num_grupos})
+    .then(data => showResponse('wf20', data, data.status === 'error'))
+    .catch(err => showResponse('wf20', {error: err.message}, true));
+  return false;
+}
+</script>
+</body>
+</html>
