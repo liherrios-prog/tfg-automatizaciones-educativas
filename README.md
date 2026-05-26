@@ -73,8 +73,8 @@ Todos los workflows están en la carpeta `workflows/` como archivos JSON listos 
 ### 1. Clona o descarga el proyecto
 
 ```bash
-git clone https://github.com/liherrios/n8n-automatizaciones-educativas.git
-cd n8n-automatizaciones-educativas
+git clone https://github.com/liherrios-prog/tfg-automatizaciones-educativas.git
+cd tfg-automatizaciones-educativas
 ```
 
 ### 2. Ejecuta el script de arranque

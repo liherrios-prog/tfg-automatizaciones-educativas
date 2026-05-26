@@ -94,3 +94,45 @@ Probé a desconectar el WiFi con n8n ya arrancado. Los workflows que trabajan so
 **USB extraído en caliente**
 
 Esta prueba la hice con cuidado. Arranqué n8n desde el USB y mientras estaba funcionando, extraje el USB sin hacer "Expulsar de forma segura". Lo que pasó es que n8n se detuvo inmediatamente y Docker mostró errores de lectura del volumen. Al volver a conectar el USB y arrancar, los datos se habían conservado hasta el momento de la extracción, ya que SQLite guarda los datos de forma periódica. No hubo corrupción de la base de datos, aunque esto podría ocurrir si se extrae justo en medio de una escritura. La recomendación es siempre parar n8n con `stop.bat` antes de extraer el USB.
+
+## 4.2 Resumen de resultados
+
+### Totales por categoría
+
+| Categoría de prueba | Pruebas realizadas | Correctas | Fallidas |
+|---------------------|-------------------|-----------|----------|
+| Infraestructura (arranque, persistencia, puertos, USB) | 6 | 6 | 0 |
+| Workflows online (01-15) | 18 | 18 | 0 |
+| Workflows offline (16-21) | 14 | 14 | 0 |
+| Errores y casos límite | 4 | 4 | 0 |
+| **Total** | **42** | **42** | **0** |
+
+Todas las pruebas se superaron satisfactoriamente. En algunos casos (celdas vacías en notas, registros duplicados), el comportamiento era predecible y coherente aunque no ideal. Estos casos quedan documentados como posibles mejoras futuras.
+
+### Matriz de cobertura por workflow
+
+| Workflow | Funcional | Caso límite | Offline verificado |
+|----------|:---------:|:-----------:|:------------------:|
+| 01 - Email Masivo | ✓ | ✓ (email vacío) | — |
+| 02 - Google Forms | ✓ | ✓ (campos incompletos) | — |
+| 03 - Recordatorio Reuniones | ✓ | ✓ (semana sin reuniones) | — |
+| 04 - Control Asistencia | ✓ | ✓ (registro duplicado) | — |
+| 05 - Consolidar Notas | ✓ | ✓ (celdas vacías) | — |
+| 06 - Informe Asistencia | ✓ | ✓ (mes sin registros) | — |
+| 07 - Backup Automático | ✓ | — | — |
+| 08 - Recordatorio Entregas | ✓ | ✓ (sin eventos próximos) | — |
+| 09 - Inventario TIC | ✓ | — | — |
+| 10 - Cumpleaños Alumnos | ✓ | ✓ (día sin cumpleaños) | — |
+| 11 - Alerta Absentismo | ✓ | ✓ (sin absentismo) | — |
+| 12 - Boletín Semanal | ✓ | ✓ (curso sin email) | — |
+| 13 - Solicitud Material | ✓ | ✓ (no urgente) | — |
+| 14 - Guardias | ✓ | ✓ (sin sustituto) | — |
+| 15 - Encuesta Satisfacción | ✓ | — | — |
+| 16 - Calculadora Notas | ✓ | ✓ (curso sin datos) | ✓ |
+| 17 - Registro Incidencias | ✓ | ✓ (tipo inválido) | ✓ |
+| 18 - Generador Contraseñas | ✓ | ✓ (sin ambiguos) | ✓ |
+| 19 - Control Préstamos | ✓ | ✓ (equipo ya prestado, retraso) | ✓ |
+| 20 - Sorteo Grupos | ✓ | ✓ (número impar) | ✓ |
+| 21 - Diario Actividad | ✓ | — | ✓ |
+
+Además, se realizó una prueba de **persistencia offline tras reinicio** que verificó que los datos de todos los workflows offline (16-21) sobreviven a una parada y arranque completa del contenedor Docker.

@@ -51,3 +51,11 @@ Las siguientes fuentes han sido consultadas durante el desarrollo del proyecto. 
 [19] INTEF (Instituto Nacional de Tecnologías Educativas y de Formación del Profesorado), "Marco Común de Competencia Digital Docente," Ministerio de Educación y Formación Profesional, 2022. [En línea]. Disponible en: https://intef.es/formacion-y-colaboracion/digital-docente/. [Acceso: 30-Mar-2025].
 
 [20] R. Knuth, "The Art of Computer Programming, Volume 2: Seminumerical Algorithms — Algorithm P (Shuffling)," 3ª ed. Boston: Addison-Wesley, 1997, pp. 145-146. *Referencia del algoritmo Fisher-Yates utilizado en el workflow 20 (Sorteo de Grupos).*
+
+## 7.6 Normativa de protección de datos
+
+[21] Parlamento Europeo y Consejo de la Unión Europea, "Reglamento (UE) 2016/679 del Parlamento Europeo y del Consejo (Reglamento General de Protección de Datos — RGPD)," *Diario Oficial de la Unión Europea*, 27 de abril de 2016. [En línea]. Disponible en: https://eur-lex.europa.eu/eli/reg/2016/679/oj. [Acceso: 7-Abr-2025].
+
+[22] Jefatura del Estado, "Ley Orgánica 3/2018, de 5 de diciembre, de Protección de Datos Personales y garantía de los derechos digitales (LOPD-GDD)," *Boletín Oficial del Estado*, núm. 294, 6 de diciembre de 2018. [En línea]. Disponible en: https://www.boe.es/eli/es/lo/2018/12/05/3. [Acceso: 7-Abr-2025].
+
+[23] Agencia Española de Protección de Datos, "Guía para centros educativos," AEPD, 2018. [En línea]. Disponible en: https://www.aepd.es/guias/guia-centros-educativos.pdf. [Acceso: 7-Abr-2025].

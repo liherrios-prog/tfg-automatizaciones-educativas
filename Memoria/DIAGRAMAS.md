@@ -156,3 +156,36 @@ graph LR
     style Internet fill:#53868b,color:#fff
     style USB fill:#e94560,color:#fff
 ```
+
+---
+
+## 6. Planificación temporal (Gantt)
+
+```mermaid
+gantt
+    title Cronograma del proyecto
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %Y
+
+    section Infraestructura
+    Investigación y aprendizaje       :done, inv, 2025-01-15, 15d
+    Docker Compose + scripts          :done, infra, after inv, 8d
+
+    section Workflows online
+    Workflows 01-10 (comunicaciones, académica, TIC) :done, wf1, after infra, 20d
+    Workflows 11-15 (alertas, recursos, calidad)     :done, wf2, after wf1, 12d
+
+    section Workflows offline
+    Diseño e implementación (16-21)   :done, wfoff, after wf2, 10d
+
+    section Documentación
+    Memoria (7 capítulos)             :done, doc, after wf1, 30d
+    Catálogo + Guía de uso            :done, cat, after wfoff, 5d
+    Panel visual interactivo          :done, panel, after cat, 5d
+    Diagramas y comparativa           :done, diag, after wfoff, 5d
+
+    section Defensa
+    Presentación PPTX                 :done, pres, after diag, 3d
+    Guion de defensa oral             :done, guion, after pres, 3d
+    Pruebas y revisión final          :done, test, after guion, 7d
+```

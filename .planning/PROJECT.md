@@ -8,28 +8,42 @@ TFG (Trabajo de Fin de Grado) del ciclo formativo ASIR en Salesianos Los Boscos.
 
 Una herramienta portátil que permite a cualquier usuario de un entorno educativo automatizar tareas repetitivas con un solo click — "solo tener que pensar una vez".
 
+## Current Milestone: v2.0 Mejoras, autonomía offline y defensa
+
+**Goal:** Elevar la calidad del TFG añadiendo workflows autónomos (sin dependencias online), reorganizando el catálogo completo, ampliando la documentación técnica, y preparando la presentación para la defensa oral.
+
+**Target features:**
+- Nuevos workflows autónomos que funcionen sin conexión a internet
+- Clasificación y reorganización del catálogo completo de workflows
+- Ampliación de documentación técnica (diagramas, comparativas, detalle)
+- Presentación profesional (diapositivas) para la defensa ante tribunal
+
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Setup Docker Compose con n8n + SQLite portable (funciona desde USB) — Milestone 1
+- ✓ Repositorio GitHub con archivos de instalación y workflows — Milestone 1
+- ✓ Scripts de instalación automática para puesta en marcha rápida — Milestone 1
+- ✓ Workflows de automatización para comunicaciones educativas (4 workflows) — Milestone 1
+- ✓ Workflows de automatización para gestión académica (6 workflows) — Milestone 1
+- ✓ Workflows de automatización para gestión de recursos, personal y calidad (3 workflows) — Milestone 1
+- ✓ Workflows de mantenimiento y convivencia (2 workflows) — Milestone 1
+- ✓ Documentación extensiva en Obsidian siguiendo plantilla del centro (7 capítulos) — Milestone 1
+- ✓ Guion de defensa oral — Milestone 1
 
 ### Active
 
-- [ ] Setup Docker Compose con n8n + SQLite portable (funciona desde USB)
-- [ ] Repositorio GitHub con archivos de instalación y workflows
-- [ ] Scripts de instalación automática para puesta en marcha rápida
-- [ ] Workflows de automatización para comunicaciones educativas
-- [ ] Workflows de automatización para gestión académica
-- [ ] Workflows de automatización para generación de contenido
-- [ ] Documentación extensiva en Obsidian siguiendo plantilla del centro
-- [ ] Documentación del proceso de creación del proyecto
+- [ ] Workflows autónomos sin dependencias online (usan nodos locales: Code, archivos, SQLite)
+- [ ] Clasificación y reorganización del catálogo completo de workflows
+- [ ] Ampliación de documentación técnica (diagramas de flujo, comparativas, detalle de diseño)
+- [ ] Presentación profesional para la defensa oral (diapositivas)
 
 ### Out of Scope
 
-- Integración de IA como feature dentro de los workflows de n8n — la IA se usa como herramienta de apoyo en el proceso del TFG, no como componente del producto final
 - Desarrollo de interfaz web propia — se usa la interfaz nativa de n8n
 - Despliegue en la nube — el proyecto es portátil y local (USB)
+- Integración con APIs de pago — el proyecto debe ser gratuito y accesible
 
 ## Context
 
@@ -55,12 +69,13 @@ Una herramienta portátil que permite a cualquier usuario de un entorno educativ
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| n8n como motor de automatización | Herramienta open-source, visual, con muchos nodos disponibles | — Pending |
-| Docker Compose para infraestructura | Permite portabilidad y persistencia con SQLite | — Pending |
-| SQLite como BBDD | Ligera, no requiere servidor separado, cabe en un contenedor | — Pending |
+| n8n como motor de automatización | Herramienta open-source, visual, con muchos nodos disponibles | ✓ Good |
+| Docker Compose para infraestructura | Permite portabilidad y persistencia con SQLite | ✓ Good |
+| SQLite como BBDD | Ligera, no requiere servidor separado, cabe en un contenedor | ✓ Good |
 | IA como herramienta, no feature | El TFG se centra en n8n y automatizaciones, no en IA como producto | ✓ Good |
-| Obsidian para documentación | Vault local, markdown, flexible, con la estructura del TFG | — Pending |
-| GitHub para distribución | Alternativa al USB, permite compartir archivos y workflows | — Pending |
+| Obsidian para documentación | Vault local, markdown, flexible, con la estructura del TFG | ✓ Good |
+| GitHub para distribución | Alternativa al USB, permite compartir archivos y workflows | ✓ Good |
+| Workflows offline | Demostrar autonomía sin internet refuerza el argumento de portabilidad USB | — Pending |
 
 ## Evolution
 
@@ -80,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2025-03-24 after initialization*
+*Last updated: 2026-03-26 after Milestone v2.0 start*

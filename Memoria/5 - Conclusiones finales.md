@@ -38,3 +38,51 @@ Durante el desarrollo del proyecto fui apuntando ideas que se me ocurrían pero 
 6. **Despliegue en la nube.** La versión USB es práctica, pero algunos centros podrían preferir tener n8n en un servidor accesible desde cualquier equipo. Se podría documentar cómo desplegar el mismo `docker-compose.yml` en un VPS o en un servicio cloud, con un dominio propio y acceso por HTTPS.
 
 7. **Guía para crear workflows personalizados.** Incluir una guía paso a paso con un ejemplo sencillo para que los profesores más curiosos puedan crear sus propias automatizaciones sin necesidad de programar.
+
+La escalabilidad del proyecto es una de sus mayores fortalezas: añadir un workflow nuevo no requiere tocar la infraestructura, solo diseñar el flujo, implementarlo en n8n y exportar el JSON. Esto hace que el proyecto sea una base sobre la que un centro educativo puede construir según sus necesidades específicas.
+
+## 5.3 Lecciones aprendidas
+
+El desarrollo de este proyecto me ha dejado varias lecciones que considero valiosas, tanto técnicas como de gestión de proyecto:
+
+**Lo más difícil fue la gestión de credenciales.** Configurar las credenciales de Google (OAuth2, API keys, permisos de Sheets y Drive) fue la parte que más tiempo y frustración me causó. La documentación de Google es extensa pero confusa, y un error en los scopes o en la configuración de la pantalla de consentimiento puede hacer que todo falle sin un mensaje de error claro. Si empezara de nuevo, dedicaría más tiempo a entender la autenticación de Google antes de crear el primer workflow.
+
+**Las pruebas con datos reales son imprescindibles.** Durante el desarrollo usé datos de prueba inventados, y todo funcionaba. Pero al probar con datos que simulaban un caso real (acentos en nombres, campos vacíos, celdas con formato inesperado en Google Sheets), varios workflows fallaron. Aprendí que los datos reales son siempre más sucios de lo esperado y que los nodos IF y las validaciones de entrada son más importantes de lo que parecen.
+
+**Docker simplifica mucho, pero hay que entender qué hace.** Al principio trataba Docker como una "caja negra": ejecutaba los comandos y funcionaba. Pero cuando tuve que depurar problemas de permisos, volúmenes y puertos, necesité entender cómo funcionan los bind mounts, las redes de Docker y el ciclo de vida de los contenedores. Para un alumno de ASIR, Docker es una herramienta fundamental y este proyecto me obligó a aprenderla a fondo.
+
+**El enfoque offline fue un punto de inflexión.** Los 15 primeros workflows dependían todos de Google Sheets y SMTP. Cuando me di cuenta de que "portabilidad USB" y "requiere Internet" era una contradicción, decidí crear los workflows offline. Esto no solo reforzó el argumento del proyecto sino que me obligó a aprender una parte de n8n (`$getWorkflowStaticData`) que no habría explorado de otra forma.
+
+**La documentación lleva más tiempo del esperado.** Redactar la memoria ha sido más laborioso que implementar varios workflows. Pero he aprendido que una documentación completa y bien estructurada es lo que diferencia un proyecto profesional de uno amateur. El código se entiende solo si se documenta.
+
+## 5.4 Métricas del proyecto
+
+Para dar una visión cuantitativa del trabajo realizado:
+
+| Métrica | Valor |
+|---------|-------|
+| Workflows implementados | 21 (15 online + 6 offline) |
+| Categorías cubiertas | 8 |
+| Líneas de JSON (workflows) | ~3.200 |
+| Líneas de documentación técnica (Cap. 3) | ~670 |
+| Pruebas funcionales documentadas | 38 |
+| Pruebas de errores y casos límite | 4 escenarios |
+| Scripts multiplataforma | 4 (start/stop × Windows/Linux) |
+| Diagramas técnicos | 6 (arquitectura, flujos, Gantt) |
+| Referencias bibliográficas | 21 |
+| Coste total en software | 0 € |
+
+### Estimación de tiempo ahorrado
+
+Uno de los objetivos del proyecto era ahorrar tiempo al profesorado. A continuación se estima el tiempo que ahorra cada tipo de automatización comparado con hacerlo manualmente:
+
+| Tarea | Tiempo manual estimado | Tiempo automatizado | Ahorro por ejecución |
+|-------|----------------------|--------------------|--------------------|
+| Enviar emails personalizados a 30 familias | 45-60 min | 3 segundos | ~99% |
+| Consolidar notas de un curso (30 alumnos) | 30-40 min | 2 segundos | ~99% |
+| Generar informe mensual de asistencia | 60-90 min | 5 segundos | ~99% |
+| Registrar incidencia de convivencia | 5-10 min (buscar formulario, rellenar) | 10 segundos (curl) | ~95% |
+| Generar contraseñas para 25 alumnos | 20-30 min | 1 segundo | ~99% |
+| Sortear grupos para una actividad | 10-15 min | 1 segundo | ~99% |
+
+Si un centro educativo utilizara los 21 workflows de forma regular durante un curso escolar, el ahorro acumulado se estimaría en **varias decenas de horas de trabajo administrativo al año**, tiempo que el profesorado podría dedicar a la docencia y la atención al alumnado.

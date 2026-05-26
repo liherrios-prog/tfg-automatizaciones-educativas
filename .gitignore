@@ -15,10 +15,16 @@ n8n-data/
 # === Claude Code (config interna) ===
 .claude/
 
+# === Oh My Claude Code ===
+.omc/
+
 # === Documentos locales (no del proyecto) ===
 Anteproyecto*.pdf
 Fase actual*.md
 Módulo PROYECTO*.md
+
+# === Logs de sesiones de trabajo (Obsidian) ===
+_sesiones/
 
 # === Sistema ===
 .DS_Store

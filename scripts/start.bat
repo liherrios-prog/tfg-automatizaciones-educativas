@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 chcp 65001 >nul 2>&1
 REM ============================================
 REM  Arranque de n8n - Entorno Educativo
@@ -50,13 +51,12 @@ if %errorlevel% neq 0 (
 
     REM Intentar instalar con winget (disponible en Windows 10 1709+)
     winget --version >nul 2>&1
-    if %errorlevel% equ 0 (
+    if !errorlevel! equ 0 (
         echo        Usando winget para instalar Docker Desktop...
         echo        Esto puede tardar unos minutos. No cierres esta ventana.
         echo.
         winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
-
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo.
             echo        Docker Desktop se ha instalado correctamente.
             echo.
@@ -68,55 +68,67 @@ if %errorlevel% neq 0 (
             echo.
             pause
             exit /b 0
-        ) else (
+        )
+        echo.
+        echo        No se pudo instalar con winget. Intentando descarga directa...
+        echo.
+    )
+
+    set "DOCKER_URL=https://desktop.docker.com/win/main/amd64/DockerDesktopInstaller.exe"
+    set "DOCKER_INSTALLER=%TEMP%\DockerDesktopInstaller.exe"
+    set "DESCARGA_OK=0"
+
+    REM Intentar con curl.exe (integrado en Windows 10 build 1803+)
+    where curl.exe >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo        Descargando Docker Desktop con curl (puede tardar varios minutos)...
+        curl.exe -L --progress-bar -o "!DOCKER_INSTALLER!" "!DOCKER_URL!"
+        if !errorlevel! equ 0 set "DESCARGA_OK=1"
+        if !DESCARGA_OK! equ 0 echo        curl fallo. Intentando con PowerShell...
+        echo.
+    )
+
+    REM Si curl falla o no esta disponible, intentar con PowerShell
+    if !DESCARGA_OK! equ 0 (
+        echo        Descargando Docker Desktop con PowerShell...
+        echo        Esto puede tardar varios minutos segun tu conexion.
+        echo.
+        powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://desktop.docker.com/win/main/amd64/DockerDesktopInstaller.exe' -OutFile '%TEMP%\DockerDesktopInstaller.exe' -UseBasicParsing; exit 0 } catch { Write-Host ('Error de descarga: ' + $_.Exception.Message); exit 1 }"
+        if !errorlevel! equ 0 set "DESCARGA_OK=1"
+    )
+
+    if !DESCARGA_OK! equ 1 (
+        if exist "!DOCKER_INSTALLER!" (
+            echo        Descarga completada. Ejecutando instalador...
+            echo        Sigue las instrucciones del instalador de Docker Desktop.
             echo.
-            echo        No se pudo instalar con winget.
-            echo        Intentando descarga directa...
+            start /wait "" "!DOCKER_INSTALLER!" install --quiet
+            del "!DOCKER_INSTALLER!" >nul 2>&1
             echo.
+            echo  ============================================
+            echo   Docker Desktop se ha instalado.
+            echo   Reinicia el equipo y vuelve a ejecutar
+            echo   este script.
+            echo  ============================================
+            echo.
+            pause
+            exit /b 0
         )
     )
 
-    REM Si winget falla, intentar con PowerShell (descarga directa)
-    echo        Descargando Docker Desktop con PowerShell...
-    echo        Esto puede tardar unos minutos segun tu conexion.
     echo.
-
-    set "DOCKER_URL=https://desktop.docker.com/win/main/amd64/Docker%%20Desktop%%20Installer.exe"
-    set "DOCKER_INSTALLER=%TEMP%\DockerDesktopInstaller.exe"
-
-    powershell -Command "try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%DOCKER_URL%' -OutFile '%DOCKER_INSTALLER%' -UseBasicParsing } catch { exit 1 }"
-
-    if exist "%DOCKER_INSTALLER%" (
-        echo        Descarga completada. Ejecutando instalador...
-        echo        Sigue las instrucciones del instalador de Docker Desktop.
-        echo.
-        start /wait "" "%DOCKER_INSTALLER%" install --quiet
-        del "%DOCKER_INSTALLER%" >nul 2>&1
-
-        echo.
-        echo  ============================================
-        echo   Docker Desktop se ha instalado.
-        echo   Reinicia el equipo y vuelve a ejecutar
-        echo   este script.
-        echo  ============================================
-        echo.
-        pause
-        exit /b 0
-    ) else (
-        echo.
-        echo  ============================================
-        echo   No se pudo descargar Docker automaticamente.
-        echo   Por favor, instala Docker Desktop manualmente:
-        echo.
-        echo   https://www.docker.com/products/docker-desktop/
-        echo.
-        echo   Una vez instalado, reinicia el equipo y
-        echo   vuelve a ejecutar este script.
-        echo  ============================================
-        echo.
-        pause
-        exit /b 1
-    )
+    echo  ============================================
+    echo   No se pudo descargar Docker automaticamente.
+    echo   Por favor, instala Docker Desktop manualmente:
+    echo.
+    echo   https://www.docker.com/products/docker-desktop/
+    echo.
+    echo   Una vez instalado, reinicia el equipo y
+    echo   vuelve a ejecutar este script.
+    echo  ============================================
+    echo.
+    pause
+    exit /b 1
 )
 
 for /f "tokens=*" %%v in ('docker --version') do echo        %%v

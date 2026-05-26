@@ -136,3 +136,21 @@ Estos workflows almacenan los datos en la base de datos SQLite interna de n8n me
 **Linux / macOS:** `./scripts/stop.sh`
 
 Los datos quedan guardados en la carpeta `n8n-data/` y estarán disponibles en el siguiente arranque.
+
+## 6.3 Resolución de problemas comunes
+
+A continuación se recogen los problemas más habituales que puede encontrar un usuario al utilizar el sistema, junto con sus causas y soluciones.
+
+| Problema | Causa probable | Solución |
+|----------|---------------|----------|
+| El script de arranque dice que Docker no está instalado | Docker Desktop no está instalado en el equipo | El propio script intenta instalarlo automáticamente. Si falla, instalar manualmente desde [docker.com](https://www.docker.com/products/docker-desktop/) |
+| Docker está instalado pero el contenedor no arranca | Docker Desktop no está ejecutándose | Abrir Docker Desktop y esperar a que arranque (icono en la barra de tareas). El script espera hasta 60 segundos |
+| Error "port is already allocated" | Otro programa está usando el puerto 5678 | Editar `.env` y cambiar `N8N_PORT` a otro valor (ej: 8080). Reiniciar con el script |
+| n8n arranca pero los workflows online fallan | Sin conexión a Internet o credenciales no configuradas | Verificar conexión a Internet. Si no hay conexión, usar los workflows offline (16-21). Si hay conexión, revisar las credenciales en n8n > Settings > Credentials |
+| "Permission denied" al ejecutar el script en Linux | El usuario no pertenece al grupo `docker` | Ejecutar `sudo usermod -aG docker $USER` y reiniciar la sesión. El script de arranque intenta hacer esto automáticamente |
+| n8n no importa un archivo JSON de workflow | Archivo corrupto, formato incompatible o versión de n8n muy diferente | Descargar el JSON original del repositorio de GitHub. Verificar que la versión de n8n es reciente |
+| Los datos de workflows offline desaparecen tras reiniciar | La carpeta `n8n-data/` no está montada correctamente | Verificar que el bind mount `./n8n-data:/home/node/.n8n` existe en `docker-compose.yml` y que la carpeta `n8n-data/` tiene permisos de escritura |
+| El webhook devuelve "Not Found" | El workflow no está activado en n8n | Abrir el workflow en n8n y activar el interruptor "Active" en la esquina superior derecha (debe quedar en verde) |
+| Error de timeout al enviar emails (SMTP) | El servidor SMTP no responde o las credenciales son incorrectas | Verificar las credenciales SMTP en n8n. Probar con un servidor alternativo (ej: Gmail con contraseña de aplicación) |
+
+**Consejo general:** Si algo no funciona, lo primero es revisar los logs del contenedor con `docker compose logs -f`. Los mensajes de error de n8n suelen ser descriptivos y apuntan directamente al nodo o la credencial que falla.

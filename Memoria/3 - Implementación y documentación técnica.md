@@ -35,7 +35,21 @@ services:
       - N8N_TEMPLATES_ENABLED=true
     volumes:
       - ./n8n-data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 ```
+
+Se ha añadido un **health check** que comprueba cada 30 segundos si n8n responde correctamente en su endpoint de salud (`/healthz`). Si n8n no responde en 3 intentos consecutivos, Docker lo marca como unhealthy y puede reiniciarlo automáticamente gracias a la política `restart: unless-stopped`. Esto es especialmente útil para detectar situaciones en las que n8n se queda colgado sin caer del todo.
+
+También se establecen **límites de memoria** (512 MB) mediante la sección `deploy.resources.limits`. Esto evita que n8n consuma toda la memoria del equipo en caso de un pico de carga o un leak de memoria, lo cual es una buena práctica de producción en entornos con recursos compartidos.
 
 **Archivo `.env.example`:**
 
@@ -602,3 +616,59 @@ La siguiente tabla resume los veintiún workflows desarrollados en el proyecto, 
 | 21 - Diario de Actividad del Centro | Administración | Libro de registro digital con búsqueda y resúmenes | Webhook POST `/diario-actividad` | Code, Respond to Webhook | SQLite (staticData) |
 
 Todos los workflows se exportan en formato JSON y se almacenan en la carpeta `workflows/` del proyecto. Esto permite importarlos en cualquier instancia de n8n sin necesidad de recrearlos manualmente, lo que refuerza el objetivo de portabilidad del proyecto. El catálogo completo con clasificación detallada está disponible en `workflows/CATALOGO.md`.
+
+## 3.3 Consideraciones de seguridad y protección de datos
+
+### 3.3.1 Marco legal aplicable
+
+Al tratarse de un sistema que maneja datos personales de alumnos en un entorno educativo, es obligatorio tener en cuenta la normativa vigente en materia de protección de datos:
+
+- **Reglamento General de Protección de Datos (RGPD)** — Reglamento (UE) 2016/679, de aplicación directa en todos los estados miembros de la UE. Establece los principios de licitud, minimización de datos, limitación de la finalidad, integridad y confidencialidad.
+- **LOPD-GDD** — Ley Orgánica 3/2018, de 5 de diciembre, de Protección de Datos Personales y garantía de los derechos digitales. Adapta el RGPD al ordenamiento jurídico español y añade disposiciones específicas para el ámbito educativo.
+
+Los datos de menores de edad tienen una protección reforzada. El artículo 7 de la LOPD-GDD establece que el tratamiento de datos de menores de 14 años requiere el consentimiento del titular de la patria potestad. En un entorno educativo, el centro actúa como responsable del tratamiento y debe garantizar que los datos se tratan de forma segura.
+
+### 3.3.2 Datos personales tratados por el sistema
+
+A continuación se clasifican los datos que manejan los workflows del proyecto, organizados por nivel de sensibilidad:
+
+| Nivel | Datos | Workflows que los tratan |
+|-------|-------|--------------------------|
+| **Alto** | Notas y calificaciones académicas | 05, 16 |
+| **Alto** | Incidencias de convivencia (tipo, descripción, alumno) | 17 |
+| **Alto** | Registro de asistencia y absentismo | 04, 06, 11 |
+| **Medio** | Nombres y apellidos de alumnos | 01, 02, 04, 05, 10, 11, 12, 16-21 |
+| **Medio** | Emails de familias / tutores legales | 01, 08, 12, 15 |
+| **Medio** | Datos de profesores (nombres, horarios, guardias) | 03, 14 |
+| **Bajo** | Inventario de equipos informáticos | 09, 19 |
+| **Bajo** | Entradas del diario de actividad | 21 |
+
+### 3.3.3 Medidas técnicas implementadas
+
+El diseño del proyecto incorpora varias medidas que contribuyen a la seguridad de los datos:
+
+1. **Almacenamiento exclusivamente local.** Todos los datos procesados por los workflows offline (16-21) se almacenan en la base de datos SQLite interna de n8n, que reside físicamente en la carpeta `n8n-data/` dentro del USB o equipo del usuario. Los datos nunca se transmiten a servidores externos ni se almacenan en la nube. Esto es una ventaja importante frente a soluciones SaaS como Zapier o Make, donde los datos del centro viajarían a servidores de terceros fuera de la UE.
+
+2. **Credenciales cifradas.** n8n almacena las credenciales de servicios externos (Google Sheets, SMTP) de forma cifrada en su base de datos SQLite, utilizando una clave de cifrado interna. Las credenciales nunca se almacenan en texto plano ni se incluyen en los archivos JSON de los workflows.
+
+3. **Exclusión de datos sensibles del repositorio.** El archivo `.gitignore` excluye la carpeta `n8n-data/` (que contiene la base de datos con datos reales) y el archivo `.env` (que puede contener configuraciones sensibles). Esto garantiza que al compartir el proyecto vía GitHub o USB, no se filtran datos personales ni credenciales.
+
+4. **Webhooks accesibles solo en localhost.** Por defecto, n8n escucha únicamente en `localhost:5678`. Esto significa que los endpoints webhook solo son accesibles desde el propio equipo donde se ejecuta n8n, no desde la red local ni desde Internet. Para acceder remotamente sería necesario configurar explícitamente el reenvío de puertos o un proxy inverso.
+
+5. **Diagnósticos desactivados.** La variable de entorno `N8N_DIAGNOSTICS_ENABLED=false` desactiva el envío de datos de telemetría a los servidores de n8n, respetando la privacidad del entorno educativo.
+
+6. **Contraseñas no persistidas.** El workflow 18 (Generador de Contraseñas) genera credenciales pero no las almacena en la base de datos. Se entregan en la respuesta HTTP y no quedan registradas, minimizando el riesgo de exposición.
+
+### 3.3.4 Recomendaciones para un entorno de producción
+
+Si un centro educativo decidiera utilizar este sistema de forma permanente con datos reales de alumnos, se recomiendan las siguientes medidas adicionales:
+
+1. **Activar la autenticación de n8n.** Configurar las variables de entorno `N8N_BASIC_AUTH_ACTIVE=true`, `N8N_BASIC_AUTH_USER` y `N8N_BASIC_AUTH_PASSWORD` para exigir usuario y contraseña en el acceso a la interfaz web. Sin esta medida, cualquier persona con acceso al equipo podría abrir n8n y ver todos los workflows y datos.
+
+2. **Restringir el acceso por red.** Si n8n se expone en una red local (por ejemplo, para que varios profesores accedan desde sus equipos), configurar un firewall o proxy inverso (como Nginx) que limite el acceso por IP y, preferiblemente, añada cifrado HTTPS.
+
+3. **Realizar backups cifrados.** El workflow 07 realiza backups a Google Drive, pero los archivos no están cifrados. Para datos sensibles, se recomienda cifrar los backups antes de subirlos (por ejemplo, con GPG) o utilizar un destino de backup cifrado.
+
+4. **Elaborar un registro de actividades de tratamiento.** El RGPD exige que el responsable del tratamiento mantenga un registro de las actividades realizadas con datos personales. Se recomienda que el centro documente qué workflows utilizan datos personales, con qué finalidad y durante cuánto tiempo se conservan.
+
+5. **Establecer una política de retención de datos.** Los datos almacenados en `$getWorkflowStaticData` persisten indefinidamente. Se recomienda implementar un mecanismo de purgado periódico (por ejemplo, eliminar registros de cursos anteriores) para cumplir con el principio de limitación del plazo de conservación del RGPD.

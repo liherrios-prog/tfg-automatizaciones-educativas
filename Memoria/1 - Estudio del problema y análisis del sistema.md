@@ -1,4 +1,4 @@
-# 1. ESTUDIO DEL PROBLEMA Y ANÁLISIS DEL SISTEMA
+ # 1. ESTUDIO DEL PROBLEMA Y ANÁLISIS DEL SISTEMA
 
 ## 1.1 Introducción
 
@@ -37,15 +37,15 @@ El sistema implementado ofrece:
 
 El desarrollo del proyecto se organiza en las siguientes fases:
 
-| Fase | Descripción | Dependencias |
-|------|-------------|-------------- |
-| 1. Infraestructura Docker | Configuración de Docker Compose con n8n y SQLite, persistencia mediante bind mounts | Ninguna |
-| 2. Scripts de instalación | Scripts de arranque y parada multiplataforma | Fase 1 |
-| 3. Workflows de comunicaciones | Automatizaciones de emails, notificaciones y avisos | Fase 1 |
-| 4. Workflows de gestión académica | Automatizaciones de notas, asistencia y administración | Fase 1 |
-| 5. Workflows de gestión de recursos, personal y calidad | Automatizaciones de solicitudes, guardias, alertas y encuestas | Fase 1 |
-| 6. Repositorio GitHub | Estructura del repositorio y documentación de distribución | Fases 1-5 |
-| 7. Documentación | Memoria completa del proyecto siguiendo la plantilla del centro | Todas |
+| Fase                                                    | Descripción                                                                         | Dependencias |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------ |
+| 1. Infraestructura Docker                               | Configuración de Docker Compose con n8n y SQLite, persistencia mediante bind mounts | Ninguna      |
+| 2. Scripts de instalación                               | Scripts de arranque y parada multiplataforma                                        | Fase 1       |
+| 3. Workflows de comunicaciones                          | Automatizaciones de emails, notificaciones y avisos                                 | Fase 1       |
+| 4. Workflows de gestión académica                       | Automatizaciones de notas, asistencia y administración                              | Fase 1       |
+| 5. Workflows de gestión de recursos, personal y calidad | Automatizaciones de solicitudes, guardias, alertas y encuestas                      | Fase 1       |
+| 6. Repositorio GitHub                                   | Estructura del repositorio y documentación de distribución                          | Fases 1-5    |
+| 7. Documentación                                        | Memoria completa del proyecto siguiendo la plantilla del centro                     | Todas        |
 
 El setup inicial de la infraestructura Docker es sencillo y rápido. El grueso del trabajo recae en la creación de workflows, ya que el proyecto es altamente escalable: se pueden crear tantas automatizaciones como se necesiten, y cada una requiere su propio diseño, implementación y pruebas.
 
@@ -87,3 +87,29 @@ Se elige **n8n** como plataforma del proyecto por las siguientes razones:
 5. **Sin dependencia de proveedor (vendor lock-in)** — Los workflows se exportan como archivos JSON estándar, facilitando su distribución, respaldo y versionado en Git.
 
 Las alternativas comerciales (Zapier, Make, Power Automate) quedan descartadas por su dependencia de la nube, sus costes recurrentes y la imposibilidad de funcionar offline o desde un USB.
+
+## 1.6 Metodología de desarrollo
+
+### Enfoque adoptado
+
+El desarrollo del proyecto sigue un enfoque **iterativo incremental**. En lugar de planificar todo el sistema por adelantado y construirlo de una sola vez (modelo en cascada), el trabajo se organiza en ciclos cortos donde cada ciclo produce un resultado funcional y probado.
+
+Cada workflow sigue el mismo ciclo de desarrollo:
+
+1. **Análisis** — Identificar una tarea repetitiva real del centro educativo y definir qué datos de entrada necesita, qué procesamiento debe hacer y qué resultado debe producir.
+2. **Diseño** — Seleccionar los nodos de n8n adecuados, definir el flujo de datos entre ellos y decidir el tipo de trigger (manual, cron, webhook).
+3. **Implementación** — Construir el workflow en la interfaz visual de n8n, escribir el código JavaScript de los nodos Code y configurar las conexiones con servicios externos.
+4. **Pruebas** — Ejecutar el workflow con datos de ejemplo, probar casos límite y verificar el resultado. Documentar los resultados en el capítulo 4.
+5. **Documentación** — Exportar el workflow como JSON, documentar su funcionamiento en el capítulo 3 y añadir la entrada al catálogo.
+
+Este enfoque permite entregar valor de forma incremental: tras cada ciclo hay un workflow nuevo y funcional que se puede mostrar, probar y validar. Si un workflow no funciona como se esperaba, se corrige en el siguiente ciclo sin afectar al resto.
+
+### Justificación
+
+Se descartó el uso de metodologías ágiles formales (Scrum, Kanban) porque están diseñadas para equipos de varias personas con roles diferenciados. En un proyecto individual como este TFG, las ceremonias formales (dailies, retrospectivas, sprint reviews) no aportan valor. El enfoque iterativo conserva la esencia ágil (entrega incremental, adaptación al cambio) sin la sobrecarga organizativa.
+
+### Herramientas de soporte
+
+- **Git y GitHub** — Control de versiones y distribución del código. Cada hito importante del proyecto se registra en un commit con mensaje descriptivo. GitHub sirve como canal de distribución alternativo al USB y como copia de seguridad del proyecto.
+- **Herramientas de IA (Claude, ChatGPT)** — Se han utilizado como herramientas de apoyo transversal: generación de archivos de configuración, asistencia en la redacción de documentación técnica, revisión de código JavaScript de los nodos Code, y contraste de ideas de diseño. El uso de estas herramientas ha permitido acelerar el desarrollo sin sustituir el trabajo de diseño y toma de decisiones, que sigue siendo responsabilidad del alumno.
+- **Obsidian** — Editor de Markdown utilizado para redactar la memoria del proyecto. Su estructura de vault local encaja bien con el flujo de trabajo del proyecto.
