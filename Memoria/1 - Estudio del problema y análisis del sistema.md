@@ -12,7 +12,7 @@ En los entornos educativos existe una gran cantidad de tareas administrativas y 
 
 La motivación de este proyecto parte de una idea sencilla: "solo tener que pensar una vez". Si una tarea se puede definir como un proceso con pasos claros, se puede automatizar. Una vez creada la automatización, el problema queda resuelto de forma indefinida, ejecutándose con un solo click cada vez que sea necesario.
 
-La finalidad es optimizar el trabajo del personal educativo, reduciendo el tiempo invertido en tareas mecánicas y permitiendo dedicar más recursos al trabajo pedagógico.
+La finalidad es que el personal educativo dedique menos tiempo a tareas mecánicas y más a la enseñanza y la atención al alumnado.
 
 ## 1.3 Alcance y objetivos
 
@@ -111,5 +111,4 @@ Se descartó el uso de metodologías ágiles formales (Scrum, Kanban) porque est
 ### Herramientas de soporte
 
 - **Git y GitHub** — Control de versiones y distribución del código. Cada hito importante del proyecto se registra en un commit con mensaje descriptivo. GitHub sirve como canal de distribución alternativo al USB y como copia de seguridad del proyecto.
-- **Herramientas de IA (Claude, ChatGPT)** — Se han utilizado como herramientas de apoyo transversal: generación de archivos de configuración, asistencia en la redacción de documentación técnica, revisión de código JavaScript de los nodos Code, y contraste de ideas de diseño. El uso de estas herramientas ha permitido acelerar el desarrollo sin sustituir el trabajo de diseño y toma de decisiones, que sigue siendo responsabilidad del alumno.
 - **Obsidian** — Editor de Markdown utilizado para redactar la memoria del proyecto. Su estructura de vault local encaja bien con el flujo de trabajo del proyecto.

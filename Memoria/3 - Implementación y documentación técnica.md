@@ -298,7 +298,7 @@ Este workflow tiene un enfoque diferente al resto: no resuelve un problema admin
 
 5. **Send Email (Notificar al tutor)**: Envía un email al tutor del grupo con la lista de alumnos que cumplen años y la edad que cumplen. El tono es cercano y positivo.
 
-**Decisión de diseño**: Este workflow demuestra que las automatizaciones no tienen que ser solo administrativas. Un pequeño detalle como felicitar a un alumno puede mejorar mucho el clima del aula, y automatizarlo asegura que no se olvide ningún cumpleaños.
+**Decisión de diseño**: Felicitar a un alumno en clase el día de su cumpleaños mejora el clima del grupo. Automatizarlo garantiza que no se olvide ninguno, independientemente de la carga de trabajo del tutor esa semana.
 
 ### 3.1.6 Fase 6: Workflows de alertas, gestión de recursos, personal y calidad
 
@@ -412,15 +412,15 @@ El primer día de cada mes envía automáticamente un enlace a una encuesta de G
 
 6. **Google Sheets (Registrar envío)**: Guarda un log de cada envío con fecha, familia, curso y email.
 
-**Decisión de diseño**: Este workflow demuestra que las automatizaciones pueden contribuir a la mejora continua del centro. Las encuestas de satisfacción son obligatorias en muchos sistemas de calidad educativa, y automatizar su distribución garantiza que se envían puntualmente sin depender de que alguien se acuerde.
+**Decisión de diseño**: Las encuestas de satisfacción son obligatorias en muchos sistemas de calidad educativa. Automatizar su distribución garantiza que se envían puntualmente sin depender de que alguien se acuerde de hacerlo manualmente.
 
-### 3.1.8 Fase 6: Workflows offline (sin conexión a Internet)
+### 3.1.7 Fase 7: Workflows offline (sin conexión a Internet)
 
 Hasta este punto, los 15 workflows anteriores dependen de servicios externos: Google Sheets como base de datos y SMTP para enviar emails. Esto significa que sin conexión a Internet, ninguno de ellos funciona. Para un proyecto que se vende como "portátil en USB", esta es una limitación importante.
 
 En esta fase se crean 6 workflows que funcionan al 100% sin Internet. La clave técnica es el uso de `$getWorkflowStaticData('global')`, una API de n8n que permite almacenar y leer datos directamente en la base de datos SQLite interna. Los datos persisten entre ejecuciones y viajan con el USB junto con el contenedor.
 
-Estos workflows demuestran que n8n puede ser una herramienta completamente autónoma, no solo un orquestador de servicios en la nube.
+Con estos workflows, n8n funciona como una herramienta completamente autónoma: no necesita servicios externos para operar.
 
 #### 16 - Calculadora de Notas Offline
 

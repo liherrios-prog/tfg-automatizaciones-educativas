@@ -19,7 +19,7 @@ Una vez terminado el desarrollo y las pruebas, toca hacer balance de lo que se h
 
 En general estoy satisfecho con el resultado. El objetivo principal, que era facilitar la vida al profesorado automatizando tareas repetitivas, se ha cumplido con creces. Los 21 workflows desarrollados cubren 8 categorías: comunicaciones, gestión académica, mantenimiento del sistema, gestión TIC, convivencia, gestión de recursos, gestión de personal docente y administración. De estos 21 workflows, 6 funcionan completamente sin Internet, demostrando que el sistema es verdaderamente portátil y autónomo. Además, los scripts de arranque multiplataforma con instalación automática de Docker hacen que la puesta en marcha sea realmente "en un solo click", cumpliendo la promesa del anteproyecto.
 
-La incorporación de los workflows offline supuso un salto cualitativo en el proyecto. El uso de `$getWorkflowStaticData('global')` para almacenar datos en la base de datos SQLite interna de n8n permite que un profesor pueda llevar el sistema en un USB, conectarlo a un ordenador sin Internet y seguir utilizando herramientas como la calculadora de notas, el registro de incidencias o el control de préstamos. Esto es especialmente relevante en centros educativos con conectividad limitada o inestable.
+Los workflows offline cambiaron el alcance del proyecto. El uso de `$getWorkflowStaticData('global')` para almacenar datos en la base de datos SQLite interna de n8n permite que un profesor pueda llevar el sistema en un USB, conectarlo a un ordenador sin Internet y seguir utilizando herramientas como la calculadora de notas, el registro de incidencias o el control de préstamos. Esto es especialmente relevante en centros educativos con conectividad limitada o inestable.
 
 ## 5.2 Propuesta de modificaciones o ampliaciones futuras
 
@@ -53,7 +53,7 @@ El desarrollo de este proyecto me ha dejado varias lecciones que considero valio
 
 **El enfoque offline fue un punto de inflexión.** Los 15 primeros workflows dependían todos de Google Sheets y SMTP. Cuando me di cuenta de que "portabilidad USB" y "requiere Internet" era una contradicción, decidí crear los workflows offline. Esto no solo reforzó el argumento del proyecto sino que me obligó a aprender una parte de n8n (`$getWorkflowStaticData`) que no habría explorado de otra forma.
 
-**La documentación lleva más tiempo del esperado.** Redactar la memoria ha sido más laborioso que implementar varios workflows. Pero he aprendido que una documentación completa y bien estructurada es lo que diferencia un proyecto profesional de uno amateur. El código se entiende solo si se documenta.
+**La documentación lleva más tiempo del esperado.** Redactar la memoria ha sido más laborioso que implementar varios workflows. He aprendido que una documentación completa y bien estructurada marca la diferencia entre un proyecto entregable y uno que solo funciona en el equipo de quien lo hizo.
 
 ## 5.4 Métricas del proyecto
 
