@@ -231,4 +231,7 @@ Write-Host ""
 Write-Host " ============================================" -ForegroundColor Green
 Write-Host ""
 
-Start-Process "http://localhost:$port"
+# explorer.exe abre el navegador como usuario normal aunque el script corra elevado
+Start-Process "explorer.exe" "http://localhost:$port"
+
+Read-Host "`nPulsa Enter para cerrar esta ventana"

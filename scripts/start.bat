@@ -4,10 +4,9 @@ chcp 65001 >nul 2>&1
 
 cd /d "%~dp0\.."
 
-REM ─── Si se ejecuta desde PowerShell, delegar a start.ps1 ─────────────────
-REM PSModulePath solo existe en entornos PowerShell
-if defined PSModulePath (
-    echo Detectado PowerShell. Usando start.ps1...
+REM ─── Usar start.ps1 si PowerShell está disponible (más robusto) ──────────
+where powershell.exe >nul 2>&1
+if %errorlevel% equ 0 (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0start.ps1"
     exit /b %errorlevel%
 )
