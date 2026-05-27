@@ -117,8 +117,9 @@ def add_cover(doc):
 
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run("Tutor: [Nombre del tutor]")
-    apply_run_format(r, 12)
+    r = p.add_run("Tutor: *** RELLENAR NOMBRE DEL TUTOR ***")
+    apply_run_format(r, 12, bold=True)
+    r.font.color.rgb = RGBColor(0xFF, 0x00, 0x00)  # rojo visible
 
     doc.add_page_break()
 
