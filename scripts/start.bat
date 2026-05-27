@@ -1,229 +1,201 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul 2>&1
-REM ============================================
-REM  Arranque de n8n - Entorno Educativo
-REM  Script multiplataforma para Windows
-REM  Detecta Docker, lo instala si hace falta
-REM  y levanta el entorno automaticamente
-REM ============================================
 
 cd /d "%~dp0\.."
+
+REM ─── Si se ejecuta desde PowerShell, delegar a start.ps1 ─────────────────
+REM PSModulePath solo existe en entornos PowerShell
+if defined PSModulePath (
+    echo Detectado PowerShell. Usando start.ps1...
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0start.ps1"
+    exit /b %errorlevel%
+)
+
+REM ─── Modo cmd.exe nativo ──────────────────────────────────────────────────
 
 echo.
 echo  ============================================
 echo   n8n - Automatizaciones Educativas
-echo   Comprobando el sistema...
 echo  ============================================
 echo.
 
-REM ============================================
-REM  PASO 1: Detectar sistema operativo
-REM ============================================
-echo [1/5] Detectando sistema operativo...
-
-for /f "tokens=4-5 delims=. " %%i in ('ver') do set VERSION=%%i.%%j
-echo        Windows detectado (version %VERSION%)
-
-REM Comprobar si es Windows 10 o superior (necesario para Docker Desktop)
-for /f "tokens=1 delims=." %%a in ("%VERSION%") do set MAJOR=%%a
-if %MAJOR% LSS 10 (
-    echo.
-    echo  [ERROR] Docker Desktop requiere Windows 10 o superior.
-    echo  Tu version de Windows no es compatible.
-    echo  Considera usar una maquina con Windows 10/11 o Linux.
-    echo.
-    pause
-    exit /b 1
-)
-
-REM ============================================
-REM  PASO 2: Verificar si Docker esta instalado
-REM ============================================
-echo [2/5] Comprobando si Docker esta instalado...
+REM ── PASO 1: Docker instalado? ─────────────────
+echo [1/5] Verificando Docker...
 
 docker --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
-    echo        Docker NO esta instalado en este equipo.
-    echo        Intentando instalarlo automaticamente...
+    echo     Docker no encontrado. Instalando...
     echo.
+    set "INSTALLED=0"
 
-    REM Intentar instalar con winget (disponible en Windows 10 1709+)
+    REM Intento 1: winget
     winget --version >nul 2>&1
     if !errorlevel! equ 0 (
-        echo        Usando winget para instalar Docker Desktop...
-        echo        Esto puede tardar unos minutos. No cierres esta ventana.
-        echo.
-        winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements
+        echo     Usando winget...
+        winget install -e --id Docker.DockerDesktop ^
+            --accept-package-agreements --accept-source-agreements --silent
+        if !errorlevel! equ 0 set "INSTALLED=1"
+    )
+
+    REM Intento 2: curl (incluido en Windows 10+)
+    if !INSTALLED! equ 0 (
+        where curl.exe >nul 2>&1
         if !errorlevel! equ 0 (
-            echo.
-            echo        Docker Desktop se ha instalado correctamente.
-            echo.
-            echo  ============================================
-            echo   IMPORTANTE: Reinicia el equipo para que
-            echo   Docker termine de configurarse. Despues,
-            echo   vuelve a ejecutar este script.
-            echo  ============================================
-            echo.
-            pause
-            exit /b 0
-        )
-        echo.
-        echo        No se pudo instalar con winget. Intentando descarga directa...
-        echo.
-    )
-
-    set "DOCKER_URL=https://desktop.docker.com/win/main/amd64/DockerDesktopInstaller.exe"
-    set "DOCKER_INSTALLER=%TEMP%\DockerDesktopInstaller.exe"
-    set "DESCARGA_OK=0"
-
-    REM Intentar con curl.exe (integrado en Windows 10 build 1803+)
-    where curl.exe >nul 2>&1
-    if !errorlevel! equ 0 (
-        echo        Descargando Docker Desktop con curl (puede tardar varios minutos)...
-        curl.exe -L --progress-bar -o "!DOCKER_INSTALLER!" "!DOCKER_URL!"
-        if !errorlevel! equ 0 set "DESCARGA_OK=1"
-        if !DESCARGA_OK! equ 0 echo        curl fallo. Intentando con PowerShell...
-        echo.
-    )
-
-    REM Si curl falla o no esta disponible, intentar con PowerShell
-    if !DESCARGA_OK! equ 0 (
-        echo        Descargando Docker Desktop con PowerShell...
-        echo        Esto puede tardar varios minutos segun tu conexion.
-        echo.
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://desktop.docker.com/win/main/amd64/DockerDesktopInstaller.exe' -OutFile '%TEMP%\DockerDesktopInstaller.exe' -UseBasicParsing; exit 0 } catch { Write-Host ('Error de descarga: ' + $_.Exception.Message); exit 1 }"
-        if !errorlevel! equ 0 set "DESCARGA_OK=1"
-    )
-
-    if !DESCARGA_OK! equ 1 (
-        if exist "!DOCKER_INSTALLER!" (
-            echo        Descarga completada. Ejecutando instalador...
-            echo        Sigue las instrucciones del instalador de Docker Desktop.
-            echo.
-            start /wait "" "!DOCKER_INSTALLER!" install --quiet
-            del "!DOCKER_INSTALLER!" >nul 2>&1
-            echo.
-            echo  ============================================
-            echo   Docker Desktop se ha instalado.
-            echo   Reinicia el equipo y vuelve a ejecutar
-            echo   este script.
-            echo  ============================================
-            echo.
-            pause
-            exit /b 0
+            echo     Descargando Docker Desktop con curl...
+            curl.exe -L --progress-bar -o "%TEMP%\DockerSetup.exe" ^
+                "https://desktop.docker.com/win/main/amd64/DockerDesktopInstaller.exe"
+            if !errorlevel! equ 0 (
+                start /wait "" "%TEMP%\DockerSetup.exe" install --quiet
+                del "%TEMP%\DockerSetup.exe" >nul 2>&1
+                set "INSTALLED=1"
+            )
         )
     )
 
-    echo.
-    echo  ============================================
-    echo   No se pudo descargar Docker automaticamente.
-    echo   Por favor, instala Docker Desktop manualmente:
-    echo.
-    echo   https://www.docker.com/products/docker-desktop/
-    echo.
-    echo   Una vez instalado, reinicia el equipo y
-    echo   vuelve a ejecutar este script.
-    echo  ============================================
-    echo.
-    pause
-    exit /b 1
-)
-
-for /f "tokens=*" %%v in ('docker --version') do echo        %%v
-
-REM ============================================
-REM  PASO 3: Verificar que Docker esta corriendo
-REM ============================================
-echo [3/5] Comprobando que Docker esta en ejecucion...
-
-docker info >nul 2>&1
-if %errorlevel% neq 0 (
-    echo.
-    echo        Docker esta instalado pero no esta corriendo.
-    echo        Intentando iniciar Docker Desktop...
-
-    start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe" >nul 2>&1
-    if %errorlevel% neq 0 (
-        start "" "%ProgramFiles%\Docker\Docker\Docker Desktop.exe" >nul 2>&1
+    REM Intento 3: PowerShell como fallback
+    if !INSTALLED! equ 0 (
+        echo     Descargando con PowerShell...
+        powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+            "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri 'https://desktop.docker.com/win/main/amd64/DockerDesktopInstaller.exe' -OutFile '%TEMP%\DockerSetup.exe' -UseBasicParsing"
+        if exist "%TEMP%\DockerSetup.exe" (
+            start /wait "" "%TEMP%\DockerSetup.exe" install --quiet
+            del "%TEMP%\DockerSetup.exe" >nul 2>&1
+            set "INSTALLED=1"
+        )
     )
 
-    echo        Esperando a que Docker arranque (puede tardar hasta 60 segundos)...
-
-    set INTENTOS=0
-    :esperar_docker
-    set /a INTENTOS+=1
-    if %INTENTOS% gtr 30 (
+    if !INSTALLED! equ 0 (
         echo.
-        echo  [ERROR] Docker no ha arrancado despues de 60 segundos.
-        echo  Abre Docker Desktop manualmente y vuelve a ejecutar este script.
-        echo.
+        echo  [ERROR] No se pudo instalar Docker automaticamente.
+        echo  Instálalo manualmente: https://docs.docker.com/get-docker/
         pause
         exit /b 1
     )
-    timeout /t 2 /nobreak >nul
-    docker info >nul 2>&1
-    if %errorlevel% neq 0 goto esperar_docker
 
-    echo        Docker esta listo.
-)
-
-echo        Docker esta corriendo correctamente.
-
-REM ============================================
-REM  PASO 4: Preparar el entorno
-REM ============================================
-echo [4/5] Preparando el entorno...
-
-REM Crear .env desde ejemplo si no existe
-if not exist .env (
-    echo        Creando archivo .env desde .env.example...
-    copy .env.example .env >nul
-)
-
-REM Crear directorio de datos si no existe
-if not exist n8n-data mkdir n8n-data
-
-echo        Entorno preparado.
-
-REM ============================================
-REM  PASO 5: Levantar n8n
-REM ============================================
-echo [5/5] Iniciando n8n...
-echo.
-
-docker compose up -d
-
-if %errorlevel% neq 0 (
     echo.
-    echo  [ERROR] No se pudo iniciar n8n.
-    echo  Comprueba que el puerto 5678 no este ocupado.
-    echo  Puedes cambiar el puerto en el archivo .env
+    echo     Docker Desktop instalado.
+    echo.
+    echo  IMPORTANTE: Reinicia el equipo y vuelve a ejecutar
+    echo  este script para continuar.
     echo.
     pause
-    exit /b 1
+    exit /b 0
 )
 
-REM Leer el puerto del .env o usar el predeterminado
-set N8N_PORT=5678
+for /f "tokens=*" %%v in ('docker --version 2^>nul') do echo     %%v
+
+REM ── PASO 2: Docker corriendo? ────────────────
+echo [2/5] Verificando que Docker esta en ejecucion...
+
+docker info >nul 2>&1
+if %errorlevel% neq 0 (
+    echo     Docker instalado pero no corriendo. Iniciando...
+
+    REM Buscar Docker Desktop en varias rutas posibles
+    set "DOCKER_EXE="
+    if exist "%ProgramFiles%\Docker\Docker\Docker Desktop.exe" (
+        set "DOCKER_EXE=%ProgramFiles%\Docker\Docker\Docker Desktop.exe"
+    )
+    if "!DOCKER_EXE!"=="" if exist "%ProgramW6432%\Docker\Docker\Docker Desktop.exe" (
+        set "DOCKER_EXE=%ProgramW6432%\Docker\Docker\Docker Desktop.exe"
+    )
+    if "!DOCKER_EXE!"=="" if exist "%LocalAppData%\Programs\Docker\Docker Desktop.exe" (
+        set "DOCKER_EXE=%LocalAppData%\Programs\Docker\Docker Desktop.exe"
+    )
+
+    if not "!DOCKER_EXE!"=="" (
+        start "" "!DOCKER_EXE!"
+    ) else (
+        REM Último recurso: intentar por nombre
+        powershell -NoProfile -Command "Start-Process 'Docker Desktop' -ErrorAction SilentlyContinue"
+    )
+
+    echo     Esperando a Docker (max. 90 segundos)...
+    set "WAIT=0"
+    :wait_docker
+    set /a WAIT+=3
+    if !WAIT! gtr 90 (
+        echo.
+        echo  [ERROR] Docker no arranco en 90 segundos.
+        echo  Abre Docker Desktop manualmente y re-ejecuta este script.
+        pause
+        exit /b 1
+    )
+    timeout /t 3 /nobreak >nul
+    docker info >nul 2>&1
+    if %errorlevel% neq 0 goto wait_docker
+    echo     Docker listo.
+)
+
+echo     Docker esta corriendo.
+
+REM ── PASO 3: Entorno ──────────────────────────
+echo [3/5] Preparando el entorno...
+
+if not exist .env (
+    if exist .env.example (
+        copy .env.example .env >nul
+        echo     Creado .env desde .env.example
+    ) else (
+        (echo N8N_PORT=5678) > .env
+        (echo TIMEZONE=Europe/Madrid) >> .env
+        echo     Creado .env con valores por defecto
+    )
+)
+if not exist n8n-data mkdir n8n-data >nul 2>&1
+
+REM ── PASO 4: Arrancar n8n ─────────────────────
+echo [4/5] Iniciando n8n...
+
+docker compose up -d >nul 2>&1
+if %errorlevel% neq 0 (
+    REM Fallback: docker-compose con guion (versiones antiguas de Docker)
+    docker-compose up -d >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo.
+        echo  [ERROR] No se pudo iniciar n8n.
+        echo  Comprueba que el puerto 5678 no esta ocupado:
+        echo  netstat -aon ^| findstr :5678
+        pause
+        exit /b 1
+    )
+)
+echo     Contenedor iniciado.
+
+REM ── PASO 5: Health check ─────────────────────
+echo [5/5] Esperando a que n8n este listo...
+
+set "N8N_PORT=5678"
 for /f "tokens=1,2 delims==" %%a in (.env) do (
-    if "%%a"=="N8N_PORT" set N8N_PORT=%%b
+    if "%%a"=="N8N_PORT" set "N8N_PORT=%%b"
 )
 
+set "HC=0"
+:healthcheck
+set /a HC+=1
+if %HC% gtr 30 (
+    echo     (n8n puede tardar unos segundos mas en responder)
+    goto n8n_ready
+)
+timeout /t 2 /nobreak >nul
+curl -s --max-time 2 -o nul http://localhost:%N8N_PORT%/ 2>nul
+if %errorlevel% neq 0 goto healthcheck
+echo     n8n listo!
+
+:n8n_ready
 echo.
 echo  ============================================
 echo.
 echo   n8n esta arrancando!
-echo.
-echo   Abre tu navegador en:
 echo   http://localhost:%N8N_PORT%
 echo.
-echo   Primera vez? n8n te pedira crear una cuenta.
-echo   Los datos se guardan en la carpeta n8n-data/
-echo.
+echo   Primera vez? Crea una cuenta en la web.
 echo   Para parar: scripts\stop.bat
 echo.
 echo  ============================================
 echo.
+
+start http://localhost:%N8N_PORT%
 pause

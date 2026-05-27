@@ -1,285 +1,214 @@
 #!/bin/bash
 # ============================================
-#  Arranque de n8n - Entorno Educativo
-#  Script multiplataforma para Linux y macOS
-#  Detecta el SO, instala Docker si hace falta
-#  y levanta el entorno automaticamente
+#  Arranque de n8n — Entorno Educativo
+#  Linux y macOS — equipos nuevos compatibles
+#  Detecta e instala Docker si hace falta.
 # ============================================
-
-set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
-# Colores para los mensajes
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # Sin color
+# Colores
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
-echo ""
-echo -e "${BLUE} ============================================${NC}"
-echo -e "${BLUE}  n8n - Automatizaciones Educativas${NC}"
-echo -e "${BLUE}  Comprobando el sistema...${NC}"
-echo -e "${BLUE} ============================================${NC}"
-echo ""
+step() { printf "\n${CYAN}[%s]${NC} %s\n" "$1" "$2"; }
+ok()   { printf "    ${GREEN}OK${NC}  %s\n" "$1"; }
+warn() { printf "    ${YELLOW}!${NC}   %s\n" "$1"; }
+die()  { printf "\n  ${RED}[ERROR]${NC} %s\n" "$1"; exit 1; }
 
-# ============================================
-#  PASO 1: Detectar sistema operativo
-# ============================================
-echo -e "[1/5] Detectando sistema operativo..."
+# ── Detectar OS ──────────────────────────────
+detect_os() {
+    case "$(uname -s)" in
+        Linux*)         echo "linux"   ;;
+        Darwin*)        echo "macos"   ;;
+        MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
+        *)              echo "unknown" ;;
+    esac
+}
 
-OS="$(uname -s)"
-ARCH="$(uname -m)"
-DISTRO=""
+OS="$(detect_os)"
+[ "$OS" = "windows" ] && die "Usa scripts\\start.bat o scripts\\start.ps1 en Windows."
+[ "$OS" = "unknown" ] && die "Sistema operativo no soportado. Instala Docker manualmente: https://docs.docker.com/get-docker/"
 
-case "$OS" in
-    Linux*)
-        OS_NAME="Linux"
-        # Detectar la distribucion
-        if [ -f /etc/os-release ]; then
-            . /etc/os-release
-            DISTRO="$NAME $VERSION_ID"
-        elif [ -f /etc/debian_version ]; then
-            DISTRO="Debian $(cat /etc/debian_version)"
-        elif [ -f /etc/redhat-release ]; then
-            DISTRO="$(cat /etc/redhat-release)"
-        else
-            DISTRO="Desconocida"
-        fi
-        echo -e "       ${GREEN}Linux detectado${NC} ($DISTRO, $ARCH)"
-        ;;
-    Darwin*)
-        OS_NAME="macOS"
-        MACOS_VERSION="$(sw_vers -productVersion 2>/dev/null || echo 'desconocida')"
-        echo -e "       ${GREEN}macOS detectado${NC} (version $MACOS_VERSION, $ARCH)"
-        ;;
-    MINGW*|MSYS*|CYGWIN*)
-        OS_NAME="Windows"
-        echo -e "       ${YELLOW}Windows detectado (Git Bash/MSYS)${NC}"
-        echo -e "       ${YELLOW}Recomendacion: usa scripts\\start.bat para mejor compatibilidad.${NC}"
-        ;;
-    *)
-        echo -e "       ${RED}Sistema operativo no reconocido: $OS${NC}"
-        echo "       Este script soporta Linux y macOS."
-        exit 1
-        ;;
-esac
+# ── docker compose vs docker-compose ─────────
+dc() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        docker-compose "$@"
+    else
+        die "docker compose no encontrado. Actualiza Docker Desktop o instala el plugin."
+    fi
+}
 
-# ============================================
-#  PASO 2: Verificar si Docker esta instalado
-# ============================================
-echo "[2/5] Comprobando si Docker esta instalado..."
+# ── Abrir navegador ──────────────────────────
+open_browser() {
+    local url="$1"
+    case "$OS" in
+        linux) xdg-open "$url" >/dev/null 2>&1 & ;;
+        macos) open     "$url" >/dev/null 2>&1 & ;;
+    esac
+}
 
-if command -v docker &> /dev/null; then
-    DOCKER_VERSION="$(docker --version)"
-    echo -e "       ${GREEN}$DOCKER_VERSION${NC}"
-else
-    echo ""
-    echo -e "       ${YELLOW}Docker NO esta instalado en este equipo.${NC}"
-    echo "       Intentando instalarlo automaticamente..."
-    echo ""
+# ── Banner ───────────────────────────────────
+printf "\n${CYAN} ============================================\n"
+printf "  n8n — Automatizaciones Educativas\n"
+printf " ============================================${NC}\n"
 
-    case "$OS_NAME" in
-        Linux)
-            # Comprobar si somos root o podemos usar sudo
-            if [ "$EUID" -ne 0 ]; then
-                if ! command -v sudo &> /dev/null; then
-                    echo -e "  ${RED}[ERROR] Se necesitan permisos de administrador para instalar Docker.${NC}"
-                    echo "  Ejecuta este script como root: sudo ./scripts/start.sh"
-                    exit 1
-                fi
-                SUDO="sudo"
+# ── PASO 1: Docker instalado? ─────────────────
+step "1/5" "Verificando Docker..."
+
+if ! command -v docker >/dev/null 2>&1; then
+    warn "Docker no encontrado. Instalando..."
+
+    # Necesitamos sudo en Linux si no somos root
+    SUDO=""
+    if [ "$OS" = "linux" ] && [ "$(id -u)" -ne 0 ]; then
+        command -v sudo >/dev/null 2>&1 || die "Se necesitan permisos de root para instalar Docker. Ejecuta: sudo $0"
+        SUDO="sudo"
+    fi
+
+    case "$OS" in
+        linux)
+            if command -v curl >/dev/null 2>&1; then
+                curl -fsSL https://get.docker.com | $SUDO sh \
+                    || die "Falló la instalación de Docker. Instálalo manualmente: https://docs.docker.com/get-docker/"
+            elif command -v wget >/dev/null 2>&1; then
+                wget -qO- https://get.docker.com | $SUDO sh \
+                    || die "Falló la instalación de Docker. Instálalo manualmente: https://docs.docker.com/get-docker/"
             else
-                SUDO=""
+                die "Se necesita curl o wget para instalar Docker.\n  Instala curl: sudo apt install curl  (Debian/Ubuntu)\n                sudo dnf install curl  (Fedora/RHEL)"
             fi
 
-            echo "       Instalando Docker en Linux..."
-            echo "       Usando el script oficial de instalacion de Docker..."
-            echo ""
-
-            # Metodo 1: Script oficial de Docker (funciona en Ubuntu, Debian, Fedora, CentOS...)
-            if command -v curl &> /dev/null; then
-                curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
-                $SUDO sh /tmp/get-docker.sh
-                rm /tmp/get-docker.sh
-            elif command -v wget &> /dev/null; then
-                wget -qO /tmp/get-docker.sh https://get.docker.com
-                $SUDO sh /tmp/get-docker.sh
-                rm /tmp/get-docker.sh
-            else
-                echo -e "  ${RED}[ERROR] Se necesita curl o wget para descargar Docker.${NC}"
-                echo "  Instala curl con: sudo apt install curl (Debian/Ubuntu)"
-                echo "                    sudo dnf install curl (Fedora)"
-                exit 1
+            # Añadir usuario al grupo docker (sin sudo para comandos futuros)
+            if [ "$(id -u)" -ne 0 ]; then
+                $SUDO usermod -aG docker "$USER" 2>/dev/null || true
+                warn "Usuario añadido al grupo docker."
+                warn "Si docker da error de permisos, ejecuta: newgrp docker"
             fi
 
-            # Anadir el usuario actual al grupo docker para no necesitar sudo
-            if [ "$EUID" -ne 0 ]; then
-                $SUDO usermod -aG docker "$USER"
-                echo ""
-                echo -e "  ${YELLOW}IMPORTANTE: Se ha anadido tu usuario al grupo 'docker'.${NC}"
-                echo -e "  ${YELLOW}Cierra la sesion y vuelve a entrar para que surta efecto,${NC}"
-                echo -e "  ${YELLOW}o ejecuta: newgrp docker${NC}"
-                echo ""
-            fi
-
-            # Instalar docker-compose plugin si no esta incluido
-            if ! docker compose version &> /dev/null 2>&1; then
-                echo "       Instalando Docker Compose plugin..."
-                $SUDO apt-get install -y docker-compose-plugin 2>/dev/null || \
-                $SUDO dnf install -y docker-compose-plugin 2>/dev/null || \
-                echo -e "  ${YELLOW}No se pudo instalar docker-compose automaticamente.${NC}"
-            fi
-
-            # Iniciar el servicio Docker
-            $SUDO systemctl start docker 2>/dev/null || $SUDO service docker start 2>/dev/null || true
+            # Iniciar servicio Docker
+            $SUDO systemctl start  docker 2>/dev/null \
+                || $SUDO service docker start 2>/dev/null || true
             $SUDO systemctl enable docker 2>/dev/null || true
 
-            echo ""
-            echo -e "       ${GREEN}Docker instalado correctamente.${NC}"
+            command -v docker >/dev/null 2>&1 \
+                || die "Instalación no completada. Instala Docker manualmente: https://docs.docker.com/get-docker/"
+
+            ok "Docker instalado."
             ;;
 
-        macOS)
-            echo "       En macOS, Docker Desktop se instala como aplicacion."
-            echo ""
-
-            # Intentar con Homebrew
-            if command -v brew &> /dev/null; then
-                echo "       Homebrew detectado. Instalando Docker Desktop..."
-                brew install --cask docker
-                echo ""
-                echo -e "       ${GREEN}Docker Desktop instalado.${NC}"
-                echo -e "       ${YELLOW}Abre Docker Desktop desde Aplicaciones antes de continuar.${NC}"
-                echo ""
-                echo "       Esperando a que Docker arranque..."
+        macos)
+            if command -v brew >/dev/null 2>&1; then
+                echo "    Instalando Docker Desktop con Homebrew..."
+                brew install --cask docker \
+                    || die "Falló la instalación con Homebrew."
                 open -a Docker 2>/dev/null || true
-
-                # Esperar hasta 60 segundos
-                INTENTOS=0
-                while ! docker info &> /dev/null 2>&1; do
-                    INTENTOS=$((INTENTOS + 1))
-                    if [ $INTENTOS -gt 30 ]; then
-                        echo -e "  ${RED}[ERROR] Docker no ha arrancado en 60 segundos.${NC}"
-                        echo "  Abre Docker Desktop manualmente y vuelve a ejecutar este script."
-                        exit 1
-                    fi
-                    sleep 2
-                done
-                echo -e "       ${GREEN}Docker esta listo.${NC}"
+                ok "Docker Desktop instalado."
+                warn "Espera a que Docker Desktop abra por primera vez."
             else
-                echo -e "  ${YELLOW}Homebrew no esta disponible.${NC}"
-                echo ""
-                echo "  Instala Docker Desktop manualmente:"
+                ARCH="$(uname -m)"
                 if [ "$ARCH" = "arm64" ]; then
-                    echo "  https://desktop.docker.com/mac/main/arm64/Docker.dmg"
+                    URL="https://desktop.docker.com/mac/main/arm64/Docker.dmg"
                 else
-                    echo "  https://desktop.docker.com/mac/main/amd64/Docker.dmg"
+                    URL="https://desktop.docker.com/mac/main/amd64/Docker.dmg"
                 fi
-                echo ""
-                echo "  Una vez instalado, vuelve a ejecutar este script."
-                exit 1
+                die "Instala Docker Desktop manualmente: $URL\nDespués vuelve a ejecutar este script."
             fi
             ;;
     esac
-
-    # Verificar que la instalacion fue exitosa
-    if ! command -v docker &> /dev/null; then
-        echo -e "  ${RED}[ERROR] La instalacion de Docker no se completo correctamente.${NC}"
-        echo "  Instala Docker manualmente: https://docs.docker.com/get-docker/"
-        exit 1
-    fi
+else
+    ok "$(docker --version)"
 fi
 
-# ============================================
-#  PASO 3: Verificar que Docker esta corriendo
-# ============================================
-echo "[3/5] Comprobando que Docker esta en ejecucion..."
+# ── PASO 2: Docker corriendo? ────────────────
+step "2/5" "Verificando que Docker está en ejecución..."
 
-if ! docker info &> /dev/null 2>&1; then
-    echo -e "       ${YELLOW}Docker esta instalado pero no esta corriendo.${NC}"
-    echo "       Intentando iniciarlo..."
+if ! docker info >/dev/null 2>&1; then
+    warn "Docker no está corriendo. Iniciando..."
 
-    case "$OS_NAME" in
-        Linux)
-            sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null || true
+    SUDO=""
+    [ "$OS" = "linux" ] && [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1 && SUDO="sudo"
+
+    case "$OS" in
+        linux)
+            $SUDO systemctl start docker 2>/dev/null \
+                || $SUDO service docker start 2>/dev/null || true
             ;;
-        macOS)
+        macos)
             open -a Docker 2>/dev/null || true
             ;;
     esac
 
-    echo "       Esperando a que Docker arranque (hasta 60 segundos)..."
-
-    INTENTOS=0
-    while ! docker info &> /dev/null 2>&1; do
-        INTENTOS=$((INTENTOS + 1))
-        if [ $INTENTOS -gt 30 ]; then
-            echo -e "  ${RED}[ERROR] Docker no ha arrancado despues de 60 segundos.${NC}"
-            echo "  Inicia Docker manualmente y vuelve a ejecutar este script."
-            exit 1
-        fi
-        sleep 2
+    printf "    Esperando a Docker (máx. 90s)...\n"
+    ELAPSED=0
+    while ! docker info >/dev/null 2>&1; do
+        sleep 3; ELAPSED=$((ELAPSED + 3))
+        [ "$ELAPSED" -gt 90 ] && die "Docker no arrancó en 90s.\nÁbrelo manualmente y vuelve a ejecutar este script."
+        printf "    %ds...\r" "$ELAPSED"
     done
+    printf "                    \n"
 fi
 
-echo -e "       ${GREEN}Docker esta corriendo correctamente.${NC}"
+ok "Docker está corriendo."
 
-# ============================================
-#  PASO 4: Preparar el entorno
-# ============================================
-echo "[4/5] Preparando el entorno..."
+# ── PASO 3: Entorno ───────────────────────────
+step "3/5" "Preparando el entorno..."
 
-# Crear .env desde ejemplo si no existe
 if [ ! -f .env ]; then
-    echo "       Creando archivo .env desde .env.example..."
-    cp .env.example .env
-fi
-
-# Crear directorio de datos si no existe
-mkdir -p n8n-data
-
-echo -e "       ${GREEN}Entorno preparado.${NC}"
-
-# ============================================
-#  PASO 5: Levantar n8n
-# ============================================
-echo "[5/5] Iniciando n8n..."
-echo ""
-
-docker compose up -d
-
-if [ $? -ne 0 ]; then
-    echo ""
-    echo -e "  ${RED}[ERROR] No se pudo iniciar n8n.${NC}"
-    echo "  Comprueba que el puerto 5678 no este ocupado."
-    echo "  Puedes cambiar el puerto en el archivo .env"
-    exit 1
-fi
-
-# Leer el puerto del .env
-N8N_PORT="${N8N_PORT:-5678}"
-if [ -f .env ]; then
-    PORT_LINE="$(grep -E '^N8N_PORT=' .env 2>/dev/null || true)"
-    if [ -n "$PORT_LINE" ]; then
-        N8N_PORT="${PORT_LINE#N8N_PORT=}"
+    if [ -f .env.example ]; then
+        cp .env.example .env
+        ok "Creado .env desde .env.example"
+    else
+        printf 'N8N_PORT=5678\nTIMEZONE=Europe/Madrid\n' > .env
+        ok "Creado .env con valores por defecto"
     fi
 fi
 
-echo ""
-echo -e "${GREEN} ============================================${NC}"
-echo ""
-echo "  n8n esta arrancando!"
-echo ""
-echo -e "  Abre tu navegador en:"
-echo -e "  ${BLUE}http://localhost:${N8N_PORT}${NC}"
-echo ""
-echo "  Primera vez? n8n te pedira crear una cuenta."
-echo "  Los datos se guardan en la carpeta n8n-data/"
-echo ""
-echo "  Para parar: ./scripts/stop.sh"
-echo ""
-echo -e "${GREEN} ============================================${NC}"
-echo ""
+mkdir -p n8n-data
+ok "Entorno preparado."
+
+# ── PASO 4: Arrancar n8n ──────────────────────
+step "4/5" "Iniciando n8n..."
+
+dc up -d || die "No se pudo iniciar n8n. ¿Puerto 5678 ocupado?\n  Diagnóstico: ss -tlnp | grep 5678"
+ok "Contenedor iniciado."
+
+# ── PASO 5: Health check ──────────────────────
+N8N_PORT=5678
+if [ -f .env ]; then
+    PORT_VAL="$(grep -E '^N8N_PORT=[0-9]+' .env 2>/dev/null | head -1)"
+    [ -n "$PORT_VAL" ] && N8N_PORT="${PORT_VAL#N8N_PORT=}"
+fi
+
+step "5/5" "Esperando a que n8n esté listo (máx. 60s)..."
+
+ELAPSED=0
+READY=0
+while [ "$READY" -eq 0 ] && [ "$ELAPSED" -lt 60 ]; do
+    sleep 2; ELAPSED=$((ELAPSED + 2))
+    if curl -s --max-time 2 "http://localhost:$N8N_PORT/" -o /dev/null 2>/dev/null; then
+        READY=1
+    fi
+    [ "$READY" -eq 0 ] && printf "    %ds...\r" "$ELAPSED"
+done
+printf "                    \n"
+
+if [ "$READY" -eq 1 ]; then
+    ok "n8n listo."
+else
+    warn "n8n puede tardar unos segundos más en responder."
+fi
+
+printf "\n${GREEN} ============================================${NC}\n"
+printf "\n"
+printf "  n8n está arrancando!\n"
+printf "  ${CYAN}http://localhost:${N8N_PORT}${NC}\n"
+printf "\n"
+printf "  Primera vez? Crea una cuenta en la web.\n"
+printf "  Para parar:  ./scripts/stop.sh\n"
+printf "\n"
+printf "${GREEN} ============================================${NC}\n\n"
+
+open_browser "http://localhost:$N8N_PORT"

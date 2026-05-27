@@ -1,0 +1,21 @@
+# Forzar LF en scripts de shell (si se clona en Windows y se usa en Linux, el shebang no se rompe)
+*.sh    text eol=lf
+*.py    text eol=lf
+
+# CRLF para scripts de Windows
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+
+# Texto genérico — git decide
+*.md    text
+*.json  text
+*.yml   text
+*.yaml  text
+*.env*  text
+
+# Binarios — sin conversión
+*.pdf   binary
+*.docx  binary
+*.pptx  binary
+*.png   binary
+*.jpg   binary
