@@ -743,6 +743,68 @@ El workflow busca automáticamente un profesor de guardia disponible para esa fr
 
 ---
 
+## Workflow 22 - Convertidor Excel Masivo
+
+**Trigger:** Manual (botón "Execute" en n8n)
+**Modo:** Offline — sin Internet, sin credenciales
+**Formatos de entrada:** `.xls` `.xlsm` `.xlsb` `.csv`
+**Formato de salida:** `.xlsx`
+
+### Antes de usarlo (una sola vez)
+
+Asegúrate de que tu `.env` contiene:
+```
+NODE_FUNCTION_ALLOW_EXTERNAL=xlsx
+```
+Esta línea ya está en `.env.example`. Si copiaste el `.env` antes de instalar este workflow, añádela manualmente y reinicia n8n (`scripts/stop.bat` → `scripts/start.bat`).
+
+### Cómo usarlo
+
+1. Copia los archivos a convertir en la carpeta de entrada del host:
+   ```
+   data\conversion\input\
+   ```
+   (relativo a la raíz del proyecto / USB)
+
+2. En n8n, abre el workflow **22 - Convertidor Excel Masivo**
+
+3. Pulsa el botón **▶ Execute Workflow**
+
+4. Cuando termine, los `.xlsx` convertidos aparecen en:
+   ```
+   data\conversion\output\
+   ```
+
+5. También aparece un CSV de reporte:
+   ```
+   data\conversion\output\REPORTE_YYYY-MM-DD.csv
+   ```
+
+### Resultado del reporte
+
+| Columna | Descripción |
+|---------|-------------|
+| `archivo_origen` | Nombre del archivo original |
+| `archivo_salida` | Nombre del `.xlsx` generado |
+| `estado` | `ok` o `error` |
+| `hojas` | Número de hojas del libro |
+| `nombres_hojas` | Nombres de las hojas separados por coma |
+| `tiempo_ms` | Tiempo de conversión en milisegundos |
+| `error` | Mensaje de error (solo si `estado` es `error`) |
+
+### Cambiar las rutas de entrada/salida
+
+Las rutas por defecto son `/data/conversion/input` y `/data/conversion/output` (dentro del contenedor).
+Para usar carpetas distintas, edita el nodo **"Configurar Rutas"** antes de ejecutar.
+
+### Notas
+
+- Los archivos con error (protegidos con contraseña, corruptos) se saltan y quedan registrados en el reporte.
+- Las hojas múltiples se preservan en el `.xlsx` de salida.
+- Si ya existe un `.xlsx` con el mismo nombre en la carpeta de salida, se sobreescribe.
+
+---
+
 ## Referencia rápida de endpoints
 
 | Workflow | Endpoint | Método |

@@ -1,0 +1,112 @@
+{
+  "name": "22 - Convertidor Excel Masivo",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Convertidor Excel Masivo\n\n**Convierte .xls / .xlsm / .xlsb / .csv → .xlsx**\n\n### Cómo usar\n1. Copia los archivos a convertir en:\n   `./data/conversion/input/`\n2. Ejecuta este workflow con el botón ▶\n3. Los .xlsx aparecen en:\n   `./data/conversion/output/`\n4. Lee el CSV de reporte para ver resultados\n\n### Rutas (host / USB)\n- Input: `data/conversion/input/`\n- Output: `data/conversion/output/`\n\n### Formatos soportados\n`.xls`  `.xlsm`  `.xlsb`  `.csv`\n\nMultiples hojas preservadas.\nArchivos con error se saltan y quedan en el reporte.",
+        "height": 360,
+        "width": 300,
+        "color": 5
+      },
+      "id": "node-sticky",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 40]
+    },
+    {
+      "parameters": {},
+      "id": "node-manual-trigger",
+      "name": "Inicio",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 460]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assign-01",
+              "name": "input_folder",
+              "value": "/data/conversion/input",
+              "type": "string"
+            },
+            {
+              "id": "assign-02",
+              "name": "output_folder",
+              "value": "/data/conversion/output",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-set-rutas",
+      "name": "Configurar Rutas",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 460]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\n\nconst inputFolder = $input.first().json.input_folder;\nconst outputFolder = $input.first().json.output_folder;\n\nif (!fs.existsSync(outputFolder)) {\n  fs.mkdirSync(outputFolder, { recursive: true });\n}\n\nconst exts = ['.xls', '.xlsm', '.xlsb', '.csv'];\nlet files;\ntry {\n  files = fs.readdirSync(inputFolder)\n    .filter(f => exts.includes(path.extname(f).toLowerCase()))\n    .map(f => ({\n      filename: f,\n      filepath: path.join(inputFolder, f),\n      output_folder: outputFolder\n    }));\n} catch (e) {\n  throw new Error('No se puede leer la carpeta: ' + inputFolder + '. ' + e.message);\n}\n\nif (files.length === 0) {\n  throw new Error('Sin archivos .xls/.xlsm/.xlsb/.csv en: ' + inputFolder);\n}\n\nreturn files.map(f => ({ json: f }));"
+      },
+      "id": "node-listar",
+      "name": "Listar Archivos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 460]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const XLSX = require('xlsx');\nconst path = require('path');\n\nconst item = $input.item.json;\nconst t0 = Date.now();\n\ntry {\n  const wb = XLSX.readFile(item.filepath);\n  const basename = path.basename(item.filename, path.extname(item.filename));\n  const outputPath = path.join(item.output_folder, basename + '.xlsx');\n  XLSX.writeFile(wb, outputPath, { bookType: 'xlsx' });\n  return {\n    json: {\n      filename: item.filename,\n      output: basename + '.xlsx',\n      output_folder: item.output_folder,\n      status: 'ok',\n      hojas: wb.SheetNames.length,\n      nombres_hojas: wb.SheetNames.join(', '),\n      tiempo_ms: Date.now() - t0\n    }\n  };\n} catch (err) {\n  return {\n    json: {\n      filename: item.filename,\n      output: '',\n      output_folder: item.output_folder,\n      status: 'error',\n      hojas: 0,\n      nombres_hojas: '',\n      error: err.message,\n      tiempo_ms: Date.now() - t0\n    }\n  };\n}"
+      },
+      "id": "node-convertir",
+      "name": "Convertir Archivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 460]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\n\nconst items = $input.all();\nconst ok = items.filter(i => i.json.status === 'ok');\nconst errors = items.filter(i => i.json.status === 'error');\n\nconst header = 'archivo_origen,archivo_salida,estado,hojas,nombres_hojas,tiempo_ms,error';\nconst rows = items.map(i => {\n  const j = i.json;\n  return [\n    '\"' + j.filename + '\"',\n    '\"' + (j.output || '') + '\"',\n    j.status,\n    j.hojas,\n    '\"' + (j.nombres_hojas || '') + '\"',\n    j.tiempo_ms,\n    '\"' + (j.error || '') + '\"'\n  ].join(',');\n});\n\nconst csv = [header, ...rows].join('\\n');\nconst outputFolder = items[0]?.json?.output_folder || '/data/conversion/output';\nconst fecha = new Date().toISOString().slice(0, 10);\nconst reportPath = path.join(outputFolder, 'REPORTE_' + fecha + '.csv');\nfs.writeFileSync(reportPath, csv, 'utf8');\n\nreturn [{\n  json: {\n    total: items.length,\n    convertidos: ok.length,\n    errores: errors.length,\n    reporte: reportPath,\n    mensaje: ok.length + '/' + items.length + ' archivos convertidos a .xlsx',\n    detalle_errores: errors.map(e => ({ archivo: e.json.filename, error: e.json.error }))\n  }\n}];"
+      },
+      "id": "node-resumen",
+      "name": "Generar Resumen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 460]
+    }
+  ],
+  "connections": {
+    "Inicio": {
+      "main": [[{ "node": "Configurar Rutas", "type": "main", "index": 0 }]]
+    },
+    "Configurar Rutas": {
+      "main": [[{ "node": "Listar Archivos", "type": "main", "index": 0 }]]
+    },
+    "Listar Archivos": {
+      "main": [[{ "node": "Convertir Archivo", "type": "main", "index": 0 }]]
+    },
+    "Convertir Archivo": {
+      "main": [[{ "node": "Generar Resumen", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "22-convertidor-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "tfg-educativo"
+  },
+  "id": "22-convertidor-excel-masivo",
+  "tags": []
+}

@@ -8,9 +8,10 @@
 
 | Metrica | Valor |
 |---------|-------|
-| Total de workflows | 21 |
+| Total de workflows | 22 |
 | Workflows online (requieren Internet) | 15 |
 | Workflows offline (funcionan sin Internet) | 6 |
+| Herramientas de utilidad | 1 |
 | Categorias cubiertas | 8 |
 | Tipos de trigger | 4 (webhook, manual, programado, schedule) |
 
@@ -112,13 +113,14 @@ Seguimiento de la convivencia, cumpleanos e incidencias.
 | **17** | **Registro de Incidencias Offline** | **Offline** | **Webhook** |
 | **21** | **Diario de Actividad del Centro** | **Offline** | **Webhook** |
 
-### Herramientas docentes y TIC (2 workflows)
+### Herramientas docentes y TIC (3 workflows)
 Herramientas de utilidad para el profesorado.
 
 | # | Workflow | Modo | Trigger |
 |---|---------|------|---------|
 | **18** | **Generador de Contrasenas** | **Offline** | **Webhook** |
 | **20** | **Sorteo y Asignacion de Grupos** | **Offline** | **Webhook** |
+| **22** | **Convertidor Excel Masivo** | **Offline** | **Manual** |
 
 ### Mantenimiento (1 workflow)
 Copias de seguridad y mantenimiento del sistema.
