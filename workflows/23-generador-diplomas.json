@@ -1,0 +1,161 @@
+{
+  "name": "23 - Generador de Diplomas",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Generador de Diplomas\n\n**Genera diplomas HTML por alumno desde Excel**\n\n### Preparar Excel\nColocar en: `data/diplomas/alumnos.xlsx`\n\nColumnas requeridas (primera hoja):\n- `nombre_alumno`\n- `curso_grado`\n- `nombre_tutor`\n- `email_destinatario` (vacío = no envía email)\n- `promocion` (ej: 2025-2026)\n\n### Output\n`data/diplomas/output/YYYY/`\n- `diploma_NombreAlumno.html` — uno por alumno\n- `TODOS.html` — batch para imprimir todo\n\n### Imprimir como PDF\nAbrir TODOS.html en Chrome →\nCtrl+P → Guardar como PDF → Orientación Horizontal\n\n### Email\nRequiere SMTP configurado en n8n.\nSi `email_destinatario` está vacío, el diploma se genera pero no se envía.",
+        "height": 440,
+        "width": 340,
+        "color": 4
+      },
+      "id": "sticky-23",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 40]
+    },
+    {
+      "parameters": {},
+      "id": "trigger-23",
+      "name": "Inicio",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 540]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            { "id": "cfg-01", "name": "nombre_centro", "value": "Salesianos Los Boscos", "type": "string" },
+            { "id": "cfg-02", "name": "excel_path", "value": "/data/diplomas/alumnos.xlsx", "type": "string" },
+            { "id": "cfg-03", "name": "output_folder", "value": "/data/diplomas/output", "type": "string" },
+            { "id": "cfg-04", "name": "ciudad", "value": "Logroño", "type": "string" },
+            { "id": "cfg-05", "name": "fecha_graduacion", "value": "", "type": "string" },
+            { "id": "cfg-06", "name": "email_remitente", "value": "noreply@salesianos.edu", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-23",
+      "name": "Configuración",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [460, 540]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const XLSX = require('xlsx');\nconst fs = require('fs');\nconst path = require('path');\n\nconst cfg = $input.first().json;\nconst center = cfg.nombre_centro;\nconst excelPath = cfg.excel_path;\nconst outBase = cfg.output_folder;\nconst ciudad = cfg.ciudad;\nconst fecha = cfg.fecha_graduacion || new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });\n\nlet wb;\ntry { wb = XLSX.readFile(excelPath); }\ncatch(e) { throw new Error('No se puede leer el Excel en: ' + excelPath + '. Coloca alumnos.xlsx en data/diplomas/'); }\n\nconst ws = wb.Sheets[wb.SheetNames[0]];\nconst rows = XLSX.utils.sheet_to_json(ws);\nif (!rows.length) throw new Error('El Excel esta vacio (primera hoja sin datos).');\n\nconst year = new Date().getFullYear();\nconst outDir = path.join(outBase, String(year));\nfs.mkdirSync(outDir, { recursive: true });\n\nconst cssStr = '@page{size:A4 landscape;margin:15mm}*{box-sizing:border-box}body{font-family:Georgia,serif;margin:0;padding:0}.diploma{width:100%;height:calc(100vh - 30mm);border:8px double #8B6914;padding:30px 50px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;background:#fffef7}.centro{font-size:13px;color:#777;letter-spacing:4px;text-transform:uppercase}.titulo{font-size:36px;color:#8B6914;font-weight:bold;letter-spacing:3px;text-transform:uppercase}.certifica{font-size:15px;color:#555;margin-bottom:4px}.alumno{font-size:30px;color:#1a1a2e;font-weight:bold;border-bottom:2px solid #8B6914;display:inline-block;padding-bottom:4px}.descripcion{font-size:14px;color:#555;margin-top:6px}.curso{font-size:19px;color:#1a1a2e;font-weight:bold}.promocion{font-size:13px;color:#777;margin-top:4px}.firmas{display:flex;justify-content:space-around}.firma{text-align:center}.linea{width:160px;border-top:1px solid #999;margin:0 auto 5px}.fn{font-size:12px;font-weight:bold;color:#333}.fc{font-size:11px;color:#777}.pie{font-size:11px;color:#999;margin-top:6px}';\n\nfunction buildBody(r) {\n  return `<div class='diploma'><div><div class='centro'>${center}</div><div class='titulo'>Diploma de Graduacion</div></div><div><div class='certifica'>Se certifica que</div><div class='alumno'>${r.nombre_alumno}</div><div class='descripcion'>ha completado satisfactoriamente</div><div class='curso'>${r.curso_grado}</div><div class='promocion'>Promocion ${r.promocion}</div></div><div><div class='firmas'><div class='firma'><div class='linea'></div><div class='fn'>${r.nombre_tutor}</div><div class='fc'>Tutor/a</div></div><div class='firma'><div class='linea'></div><div class='fn'>Direccion del Centro</div><div class='fc'>Director/a</div></div></div><div class='pie'>${ciudad}, ${fecha}</div></div></div>`;\n}\n\nfunction wrapHTML(body) {\n  return `<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'><style>${cssStr}</style></head><body>${body}</body></html>`;\n}\n\nconst items = [];\nfor (const r of rows) {\n  const body = buildBody(r);\n  const html = wrapHTML(body);\n  const safe = (r.nombre_alumno || 'alumno').replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');\n  const fname = 'diploma_' + safe + '.html';\n  const fpath = path.join(outDir, fname);\n  fs.writeFileSync(fpath, html, 'utf8');\n  items.push({\n    json: {\n      nombre_alumno: r.nombre_alumno,\n      curso_grado: r.curso_grado,\n      nombre_tutor: r.nombre_tutor,\n      email_destinatario: r.email_destinatario || '',\n      promocion: String(r.promocion || ''),\n      filename: fname,\n      filepath: fpath,\n      output_folder: outDir\n    },\n    binary: {\n      attachment: {\n        data: Buffer.from(html, 'utf8').toString('base64'),\n        mimeType: 'text/html',\n        fileName: fname\n      }\n    }\n  });\n}\n\nconst batchBodies = rows.map((r, i) => buildBody(r) + (i < rows.length - 1 ? `<div style='page-break-after:always'></div>` : '')).join('');\nfs.writeFileSync(path.join(outDir, 'TODOS.html'), wrapHTML(batchBodies), 'utf8');\n\nreturn items;"
+      },
+      "id": "code-23",
+      "name": "Generar Diplomas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 540]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "if-cond-01",
+              "leftValue": "={{ $json.email_destinatario }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-23",
+      "name": "¿Tiene email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 540]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('Configuración').item.json.email_remitente }}",
+        "toEmail": "={{ $json.email_destinatario }}",
+        "subject": "=Diploma de Graduación — {{ $json.nombre_alumno }}",
+        "emailType": "html",
+        "html": "=<p>Estimada familia de <strong>{{ $json.nombre_alumno }}</strong>,</p><p>Con motivo de la clausura del presente curso, nos complace hacer entrega del diploma de graduacion de <strong>{{ $json.curso_grado }}</strong>, Promocion {{ $json.promocion }}.</p><p>Encontrara el diploma adjunto a este correo. Puede abrirlo en cualquier navegador y guardarlo como PDF con Ctrl+P.</p><p>Enhorabuena a toda la familia.<br><br>{{ $json.nombre_tutor }}<br>Tutor/a</p>",
+        "options": {
+          "attachments": "attachment"
+        }
+      },
+      "id": "email-23",
+      "name": "Enviar Diploma",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1120, 440],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge-23",
+      "name": "Merge Resultados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1340, 540]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const items = $input.all();\nconst conEmail = items.filter(i => i.json.email_destinatario);\nconst outFolder = items[0]?.json?.output_folder || '/data/diplomas/output';\nreturn [{\n  json: {\n    total_diplomas: items.length,\n    emails_enviados: conEmail.length,\n    sin_email: items.length - conEmail.length,\n    carpeta_output: outFolder,\n    batch_html: outFolder + '/TODOS.html',\n    mensaje: items.length + ' diplomas generados. Batch en: ' + outFolder + '/TODOS.html'\n  }\n}];"
+      },
+      "id": "summary-23",
+      "name": "Resumen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 540]
+    }
+  ],
+  "connections": {
+    "Inicio": {
+      "main": [[{ "node": "Configuración", "type": "main", "index": 0 }]]
+    },
+    "Configuración": {
+      "main": [[{ "node": "Generar Diplomas", "type": "main", "index": 0 }]]
+    },
+    "Generar Diplomas": {
+      "main": [[{ "node": "¿Tiene email?", "type": "main", "index": 0 }]]
+    },
+    "¿Tiene email?": {
+      "main": [
+        [{ "node": "Enviar Diploma", "type": "main", "index": 0 }],
+        [{ "node": "Merge Resultados", "type": "main", "index": 1 }]
+      ]
+    },
+    "Enviar Diploma": {
+      "main": [[{ "node": "Merge Resultados", "type": "main", "index": 0 }]]
+    },
+    "Merge Resultados": {
+      "main": [[{ "node": "Resumen", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "23-diplomas-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "tfg-educativo"
+  },
+  "id": "23-generador-diplomas",
+  "tags": []
+}

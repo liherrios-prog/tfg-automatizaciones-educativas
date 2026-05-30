@@ -805,6 +805,73 @@ Para usar carpetas distintas, edita el nodo **"Configurar Rutas"** antes de ejec
 
 ---
 
+## Workflow 23 - Generador de Diplomas
+
+**Trigger:** Manual (botón "Execute" en n8n)
+**Modo:** Offline para generación de archivos + SMTP para envío de emails
+**Requiere:** SMTP configurado en n8n solo si se quieren enviar emails
+
+### Preparar el Excel
+
+Crear el archivo `data\diplomas\alumnos.xlsx` (o copiar y renombrar `data\diplomas\input\PLANTILLA.csv` como `.xlsx`).
+
+Primera hoja con estas columnas:
+
+| Columna | Tipo | Ejemplo | Obligatorio |
+|---------|------|---------|-------------|
+| `nombre_alumno` | texto | Maria Garcia Lopez | Sí |
+| `curso_grado` | texto | CFGS ASIR Dual | Sí |
+| `nombre_tutor` | texto | Prof. Rodriguez | Sí |
+| `email_destinatario` | email | familia@email.com | No |
+| `promocion` | texto | 2025-2026 | Sí |
+
+> Si `email_destinatario` está vacío, el diploma se genera en disco pero no se envía por email.
+
+### Configurar el nodo "Configuración"
+
+Antes de ejecutar, ajusta los valores del nodo **Configuración** según tu centro:
+
+| Campo | Por defecto | Descripción |
+|-------|-------------|-------------|
+| `nombre_centro` | Salesianos Los Boscos | Aparece en la cabecera del diploma |
+| `ciudad` | Logroño | Aparece en el pie junto a la fecha |
+| `fecha_graduacion` | (vacío = hoy) | Formato libre, ej: "20 de junio de 2026" |
+| `email_remitente` | noreply@salesianos.edu | Email de origen del envío |
+
+### Cómo usarlo
+
+1. Coloca `alumnos.xlsx` en la carpeta `data\diplomas\` del proyecto
+2. En n8n, abre el workflow **23 - Generador de Diplomas**
+3. Ajusta el nodo **Configuración** si es necesario
+4. Si vas a enviar emails, selecciona tu credencial SMTP en el nodo **Enviar Diploma**
+5. Pulsa **▶ Execute Workflow**
+
+### Resultado
+
+Los archivos generados aparecen en:
+```
+data\diplomas\output\YYYY\
+├── diploma_Maria_Garcia_Lopez.html   ← uno por alumno
+├── diploma_Carlos_Martinez_Ruiz.html
+└── TODOS.html                        ← batch para imprimir todos
+```
+
+### Imprimir todos los diplomas como PDF
+
+1. Abre `TODOS.html` en Google Chrome
+2. `Ctrl+P` → Destino: **Guardar como PDF**
+3. Orientación: **Horizontal (Landscape)**
+4. Márgenes: **Mínimo** o **Ninguno**
+5. Guardar
+
+Cada diploma ocupa una página A4 horizontal.
+
+### Credencial SMTP
+
+El nodo **Enviar Diploma** requiere una credencial SMTP. Si ya tienes una configurada para los workflows 01-15, selecciónala en el desplegable del nodo. Si no, configúrala en **Settings > Credentials > Add Credential > SMTP**.
+
+---
+
 ## Referencia rápida de endpoints
 
 | Workflow | Endpoint | Método |

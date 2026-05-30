@@ -8,10 +8,10 @@
 
 | Metrica | Valor |
 |---------|-------|
-| Total de workflows | 22 |
+| Total de workflows | 23 |
 | Workflows online (requieren Internet) | 15 |
 | Workflows offline (funcionan sin Internet) | 6 |
-| Herramientas de utilidad | 1 |
+| Herramientas de utilidad | 2 |
 | Categorias cubiertas | 8 |
 | Tipos de trigger | 4 (webhook, manual, programado, schedule) |
 
@@ -121,6 +121,7 @@ Herramientas de utilidad para el profesorado.
 | **18** | **Generador de Contrasenas** | **Offline** | **Webhook** |
 | **20** | **Sorteo y Asignacion de Grupos** | **Offline** | **Webhook** |
 | **22** | **Convertidor Excel Masivo** | **Offline** | **Manual** |
+| **23** | **Generador de Diplomas** | **Offline + SMTP** | **Manual** |
 
 ### Mantenimiento (1 workflow)
 Copias de seguridad y mantenimiento del sistema.
