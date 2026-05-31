@@ -12,7 +12,10 @@
       "name": "Instrucciones",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [240, 40]
+      "position": [
+        240,
+        40
+      ]
     },
     {
       "parameters": {},
@@ -20,7 +23,10 @@
       "name": "Inicio",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [240, 540]
+      "position": [
+        240,
+        540
+      ]
     },
     {
       "parameters": {
@@ -28,12 +34,42 @@
         "duplicateItem": false,
         "assignments": {
           "assignments": [
-            { "id": "cfg-01", "name": "nombre_centro", "value": "Salesianos Los Boscos", "type": "string" },
-            { "id": "cfg-02", "name": "excel_path", "value": "/data/diplomas/alumnos.xlsx", "type": "string" },
-            { "id": "cfg-03", "name": "output_folder", "value": "/data/diplomas/output", "type": "string" },
-            { "id": "cfg-04", "name": "ciudad", "value": "Logroño", "type": "string" },
-            { "id": "cfg-05", "name": "fecha_graduacion", "value": "", "type": "string" },
-            { "id": "cfg-06", "name": "email_remitente", "value": "noreply@salesianos.edu", "type": "string" }
+            {
+              "id": "cfg-01",
+              "name": "nombre_centro",
+              "value": "Salesianos Los Boscos",
+              "type": "string"
+            },
+            {
+              "id": "cfg-02",
+              "name": "excel_path",
+              "value": "/data/diplomas/alumnos.xlsx",
+              "type": "string"
+            },
+            {
+              "id": "cfg-03",
+              "name": "output_folder",
+              "value": "/data/diplomas/output",
+              "type": "string"
+            },
+            {
+              "id": "cfg-04",
+              "name": "ciudad",
+              "value": "Logroño",
+              "type": "string"
+            },
+            {
+              "id": "cfg-05",
+              "name": "fecha_graduacion",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "cfg-06",
+              "name": "email_remitente",
+              "value": "noreply@salesianos.edu",
+              "type": "string"
+            }
           ]
         },
         "options": {}
@@ -42,18 +78,24 @@
       "name": "Configuración",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3,
-      "position": [460, 540]
+      "position": [
+        460,
+        540
+      ]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const XLSX = require('xlsx');\nconst fs = require('fs');\nconst path = require('path');\n\nconst cfg = $input.first()?.json || {};\nconst center = cfg.nombre_centro || 'Salesianos Los Boscos';\nconst excelPath = cfg.excel_path || '/data/diplomas/alumnos.xlsx';\nconst outBase = cfg.output_folder || '/data/diplomas/output';\nconst ciudad = cfg.ciudad || 'Logroño';\nconst fecha = cfg.fecha_graduacion || new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });\n\nlet wb;\ntry { wb = XLSX.readFile(excelPath); }\ncatch(e) { throw new Error('No se puede leer el Excel en: ' + excelPath + '. Coloca alumnos.xlsx en data/diplomas/'); }\n\nconst ws = wb.Sheets[wb.SheetNames[0]];\nconst rows = XLSX.utils.sheet_to_json(ws);\nif (!rows.length) throw new Error('El Excel esta vacio (primera hoja sin datos).');\n\nconst year = new Date().getFullYear();\nconst outDir = path.join(outBase, String(year));\nfs.mkdirSync(outDir, { recursive: true });\n\nconst cssStr = '@page{size:A4 landscape;margin:15mm}*{box-sizing:border-box}body{font-family:Georgia,serif;margin:0;padding:0}.diploma{width:100%;height:calc(100vh - 30mm);border:8px double #8B6914;padding:30px 50px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;background:#fffef7}.centro{font-size:13px;color:#777;letter-spacing:4px;text-transform:uppercase}.titulo{font-size:36px;color:#8B6914;font-weight:bold;letter-spacing:3px;text-transform:uppercase}.certifica{font-size:15px;color:#555;margin-bottom:4px}.alumno{font-size:30px;color:#1a1a2e;font-weight:bold;border-bottom:2px solid #8B6914;display:inline-block;padding-bottom:4px}.descripcion{font-size:14px;color:#555;margin-top:6px}.curso{font-size:19px;color:#1a1a2e;font-weight:bold}.promocion{font-size:13px;color:#777;margin-top:4px}.firmas{display:flex;justify-content:space-around}.firma{text-align:center}.linea{width:160px;border-top:1px solid #999;margin:0 auto 5px}.fn{font-size:12px;font-weight:bold;color:#333}.fc{font-size:11px;color:#777}.pie{font-size:11px;color:#999;margin-top:6px}';\n\nfunction buildBody(r) {\n  return `<div class='diploma'><div><div class='centro'>${center}</div><div class='titulo'>Diploma de Graduacion</div></div><div><div class='certifica'>Se certifica que</div><div class='alumno'>${r.nombre_alumno}</div><div class='descripcion'>ha completado satisfactoriamente</div><div class='curso'>${r.curso_grado}</div><div class='promocion'>Promocion ${r.promocion}</div></div><div><div class='firmas'><div class='firma'><div class='linea'></div><div class='fn'>${r.nombre_tutor}</div><div class='fc'>Tutor/a</div></div><div class='firma'><div class='linea'></div><div class='fn'>Direccion del Centro</div><div class='fc'>Director/a</div></div></div><div class='pie'>${ciudad}, ${fecha}</div></div></div>`;\n}\n\nfunction wrapHTML(body) {\n  return `<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'><style>${cssStr}</style></head><body>${body}</body></html>`;\n}\n\nconst items = [];\nfor (const r of rows) {\n  const body = buildBody(r);\n  const html = wrapHTML(body);\n  const safe = (r.nombre_alumno || 'alumno').replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');\n  const fname = 'diploma_' + safe + '.html';\n  const fpath = path.join(outDir, fname);\n  fs.writeFileSync(fpath, html, 'utf8');\n  items.push({\n    json: {\n      nombre_alumno: r.nombre_alumno,\n      curso_grado: r.curso_grado,\n      nombre_tutor: r.nombre_tutor,\n      email_destinatario: r.email_destinatario || '',\n      promocion: String(r.promocion || ''),\n      filename: fname,\n      filepath: fpath,\n      output_folder: outDir\n    },\n    binary: {\n      attachment: {\n        data: Buffer.from(html, 'utf8').toString('base64'),\n        mimeType: 'text/html',\n        fileName: fname\n      }\n    }\n  });\n}\n\nconst batchBodies = rows.map((r, i) => buildBody(r) + (i < rows.length - 1 ? `<div style='page-break-after:always'></div>` : '')).join('');\nfs.writeFileSync(path.join(outDir, 'TODOS.html'), wrapHTML(batchBodies), 'utf8');\n\nreturn items;"
+        "jsCode": "const XLSX = require('xlsx');\nconst fs = require('fs');\nconst path = require('path');\n\nconst cfg = $input.first()?.json || {};\nconst center = cfg.nombre_centro || 'Salesianos Los Boscos';\nconst excelPath = cfg.excel_path || '/data/diplomas/alumnos.xlsx';\nconst outBase = cfg.output_folder || '/data/diplomas/output';\nconst ciudad = cfg.ciudad || 'Logroño';\nconst fecha = cfg.fecha_graduacion || new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });\n\nlet wb;\ntry { wb = XLSX.readFile(excelPath); }\ncatch(e) { throw new Error('No se puede leer el Excel en: ' + excelPath + '. Coloca alumnos.xlsx en data/diplomas/'); }\n\nconst ws = wb.Sheets[wb.SheetNames[0]];\nconst rows = XLSX.utils.sheet_to_json(ws);\nif (!rows.length) throw new Error('El Excel esta vacio (primera hoja sin datos).');\n\nlet logoBase64 = '';\nconst logoPath = '/data/diplomas/logo.png';\ntry {\n  const logoBuf = fs.readFileSync(logoPath);\n  logoBase64 = 'data:image/png;base64,' + logoBuf.toString('base64');\n} catch(e) {}\n\nconst year = new Date().getFullYear();\nconst outDir = path.join(outBase, String(year));\nfs.mkdirSync(outDir, { recursive: true });\n\nconst cssStr = '@page{size:A4 landscape;margin:15mm}*{box-sizing:border-box}body{font-family:Georgia,serif;margin:0;padding:0}.diploma{width:100%;height:calc(100vh - 30mm);border:8px double #CC1C1C;padding:30px 50px;text-align:center;display:flex;flex-direction:column;justify-content:space-between;background:#fffef7}.centro{font-size:13px;color:#5C6770;letter-spacing:4px;text-transform:uppercase}.titulo{font-size:36px;color:#CC1C1C;font-weight:bold;letter-spacing:3px;text-transform:uppercase}.certifica{font-size:15px;color:#555;margin-bottom:4px}.alumno{font-size:30px;color:#2a2a2a;font-weight:bold;border-bottom:2px solid #CC1C1C;display:inline-block;padding-bottom:4px}.descripcion{font-size:14px;color:#555;margin-top:6px}.curso{font-size:19px;color:#2a2a2a;font-weight:bold}.promocion{font-size:13px;color:#5C6770;margin-top:4px}.firmas{display:flex;justify-content:space-around;align-items:flex-end}.firma{text-align:center}.firma-logo{text-align:center;display:flex;align-items:center;justify-content:center}.logo-centro{max-height:70px;max-width:180px;object-fit:contain}.linea{width:160px;border-top:1px solid #999;margin:0 auto 5px}.fn{font-size:12px;font-weight:bold;color:#333}.fc{font-size:11px;color:#777}.pie{font-size:11px;color:#999;margin-top:6px}';\n\nfunction buildBody(r) {\n  const logoHtml = logoBase64\n    ? \"<div class='firma-logo'><img src='\" + logoBase64 + \"' class='logo-centro' alt='Salesianos Los Boscos'></div>\"\n    : '';\n  return \"<div class='diploma'><div><div class='centro'>\" + center + \"</div><div class='titulo'>Diploma de Graduacion</div></div><div><div class='certifica'>Se certifica que</div><div class='alumno'>\" + r.nombre_alumno + \"</div><div class='descripcion'>ha completado satisfactoriamente</div><div class='curso'>\" + r.curso_grado + \"</div><div class='promocion'>Promocion \" + r.promocion + \"</div></div><div><div class='firmas'><div class='firma'><div class='linea'></div><div class='fn'>\" + r.nombre_tutor + \"</div><div class='fc'>Tutor/a</div></div>\" + logoHtml + \"<div class='firma'><div class='linea'></div><div class='fn'>Direccion del Centro</div><div class='fc'>Director/a</div></div></div><div class='pie'>\" + ciudad + \", \" + fecha + \"</div></div></div>\";\n}\n\nfunction wrapHTML(body) {\n  return \"<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'><style>\" + cssStr + \"</style></head><body>\" + body + \"</body></html>\";\n}\n\nconst items = [];\nfor (const r of rows) {\n  const body = buildBody(r);\n  const html = wrapHTML(body);\n  const safe = (r.nombre_alumno || 'alumno').replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_');\n  const fname = 'diploma_' + safe + '.html';\n  const fpath = path.join(outDir, fname);\n  fs.writeFileSync(fpath, html, 'utf8');\n  items.push({\n    json: {\n      nombre_alumno: r.nombre_alumno,\n      curso_grado: r.curso_grado,\n      nombre_tutor: r.nombre_tutor,\n      email_destinatario: r.email_destinatario || '',\n      promocion: String(r.promocion || ''),\n      filename: fname,\n      filepath: fpath,\n      output_folder: outDir\n    },\n    binary: {\n      attachment: {\n        data: Buffer.from(html, 'utf8').toString('base64'),\n        mimeType: 'text/html',\n        fileName: fname\n      }\n    }\n  });\n}\n\nconst batchBodies = rows.map((r, i) => buildBody(r) + (i < rows.length - 1 ? \"<div style='page-break-after:always'></div>\" : '')).join('');\nfs.writeFileSync(path.join(outDir, 'TODOS.html'), wrapHTML(batchBodies), 'utf8');\n\nreturn items;"
       },
       "id": "code-23",
       "name": "Generar Diplomas",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 540]
+      "position": [
+        680,
+        540
+      ]
     },
     {
       "parameters": {
@@ -82,7 +124,10 @@
       "name": "¿Tiene email?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 540]
+      "position": [
+        900,
+        540
+      ]
     },
     {
       "parameters": {
@@ -99,7 +144,10 @@
       "name": "Enviar Diploma",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1120, 440],
+      "position": [
+        1120,
+        440
+      ],
       "onError": "continueRegularOutput"
     },
     {
@@ -110,7 +158,10 @@
       "name": "Merge Resultados",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
-      "position": [1340, 540]
+      "position": [
+        1340,
+        540
+      ]
     },
     {
       "parameters": {
@@ -121,30 +172,85 @@
       "name": "Resumen",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 540]
+      "position": [
+        1560,
+        540
+      ]
     }
   ],
   "connections": {
     "Inicio": {
-      "main": [[{ "node": "Configuración", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Configuración",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Configuración": {
-      "main": [[{ "node": "Generar Diplomas", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Generar Diplomas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Generar Diplomas": {
-      "main": [[{ "node": "¿Tiene email?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "¿Tiene email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "¿Tiene email?": {
       "main": [
-        [{ "node": "Enviar Diploma", "type": "main", "index": 0 }],
-        [{ "node": "Merge Resultados", "type": "main", "index": 1 }]
+        [
+          {
+            "node": "Enviar Diploma",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Resultados",
+            "type": "main",
+            "index": 1
+          }
+        ]
       ]
     },
     "Enviar Diploma": {
-      "main": [[{ "node": "Merge Resultados", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Merge Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Merge Resultados": {
-      "main": [[{ "node": "Resumen", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Resumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
