@@ -33,8 +33,11 @@ services:
       - N8N_RUNNERS_ENABLED=true
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_TEMPLATES_ENABLED=true
+      - NODE_FUNCTION_ALLOW_EXTERNAL=xlsx
+      - NODE_FUNCTION_ALLOW_BUILTIN=fs,path
     volumes:
       - ./n8n-data:/home/node/.n8n
+      - ./data:/data
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]
       interval: 30s
@@ -536,6 +539,62 @@ Actúa como un libro de registro digital del centro educativo. Permite anotar ev
 
 **Decisión de diseño**: He incluido 5 tipos de entrada en lugar de texto libre para poder generar estadísticas significativas. Los tipos cubren el espectro de lo que un centro educativo registra: eventos (excursiones, celebraciones), incidencias (averías, problemas), logros (premios, reconocimientos), recordatorios (plazos, entregas) y actas (reuniones, claustros).
 
+### 3.1.8 Fase 8: Herramientas de productividad y generación de documentos
+
+En esta fase se incorporaron dos nuevos workflows orientados a tareas de soporte administrativo que los centros educativos realizan de forma recurrente: la conversión masiva de archivos Excel heredados y la generación automática de diplomas de graduación. Ambos son completamente offline y se distinguen del resto porque producen archivos físicos en disco, no solo respuestas JSON. Esto requirió ampliar la configuración del contenedor Docker con tres ajustes adicionales:
+
+1. `NODE_FUNCTION_ALLOW_EXTERNAL=xlsx` — permite a los nodos Code usar la librería SheetJS (`xlsx`) para leer y escribir archivos Excel. Sin esta variable, n8n bloquea las dependencias externas por seguridad.
+2. `NODE_FUNCTION_ALLOW_BUILTIN=fs,path` — habilita los módulos nativos de Node.js `fs` y `path` dentro de los nodos Code. Son necesarios para leer archivos del host y escribir los resultados en disco.
+3. Volumen `./data:/data` — monta la carpeta `data/` del proyecto como `/data` dentro del contenedor. Así los workflows pueden leer archivos de entrada (Excel, logo) desde el USB y escribir los archivos generados en una ruta accesible desde el host.
+
+#### 22 - Convertidor Excel Masivo
+
+**Categoría:** Herramientas TIC | **Modo:** Offline
+
+Resuelve un problema habitual en centros con histórico de ficheros: la convivencia de formatos Excel antiguos (`.xls`, `.xlsm`, `.xlsb`) con herramientas modernas que solo aceptan `.xlsx`. El workflow convierte en bloque todos los archivos de la carpeta de entrada y genera un informe CSV con el resultado de cada conversión.
+
+**Flujo de ejecución:**
+
+1. **Manual Trigger**: El proceso se lanza manualmente porque el usuario debe haber colocado los archivos en la carpeta de entrada previamente.
+
+2. **Configurar Rutas** (nodo Set): Define las rutas de entrada (`/data/conversion/input`) y salida (`/data/conversion/output`). Al ser un nodo Set independiente, cambiar las rutas no requiere tocar el código de conversión.
+
+3. **Code (Convertir archivos)**: El código JavaScript lee el directorio de entrada con `fs.readdirSync`, filtra los archivos con extensiones compatibles y convierte cada uno usando `XLSX.readFile` / `XLSX.writeFile`. Los errores (archivos protegidos con contraseña, corruptos) se capturan individualmente y se registran con estado `error` sin abortar el proceso completo.
+
+4. **Code (Generar reporte CSV)**: Toma el array de resultados y genera un fichero `REPORTE_YYYY-MM-DD.csv` con una fila por archivo: nombre, estado, número de hojas y tiempo de conversión.
+
+**Decisión de diseño**: Los errores individuales no abortan la conversión completa. En un lote de 50 archivos, un solo fichero protegido no debe impedir la conversión del resto. El reporte CSV permite identificar qué archivos necesitan atención sin revisar uno por uno.
+
+#### 23 - Generador de Diplomas de Graduación
+
+**Categoría:** Herramientas docentes | **Modo:** Offline + SMTP opcional
+
+Es el workflow más visual del proyecto. A partir de un Excel con los datos de los alumnos de la promoción, genera un diploma HTML personalizado para cada uno con el logotipo institucional del centro y el diseño en los colores corporativos.
+
+**Flujo de ejecución:**
+
+1. **Manual Trigger**: La generación de diplomas es un acto deliberado y único en el año. Se lanza manualmente cuando el profesor ha preparado el Excel con todos los graduados.
+
+2. **Configuración** (nodo Set): Define los parámetros del diploma: nombre del centro, ciudad, fecha de graduación y email remitente. El usuario solo necesita editar este nodo para adaptar los diplomas a cualquier centro o promoción.
+
+3. **Code (Generar Diplomas)**: El nodo central del workflow:
+   - Lee el Excel `alumnos.xlsx` con SheetJS, extrayendo los datos de la primera hoja.
+   - Lee el archivo `logo.png` del centro con `fs.readFileSync` y lo codifica en Base64. Al embeber el logo directamente en el HTML como `data:image/png;base64,...`, cada diploma es un archivo **autocontenido** que funciona sin conexión y sin depender de rutas externas.
+   - Genera el HTML de cada diploma aplicando el **tema visual corporativo de Salesianos Los Boscos**: borde y títulos en rojo institucional (`#CC1C1C`), subtítulos en gris (`#5C6770`), tipografía Georgia serif y fondo crema. El logotipo aparece centrado entre la firma del tutor y la firma de dirección, encima de la ciudad y la fecha.
+   - Escribe cada diploma como archivo `.html` individual en `data/diplomas/output/YYYY/`.
+   - Genera adicionalmente un archivo `TODOS.html` que contiene todos los diplomas con saltos de página, pensado para imprimir toda la promoción de una sola vez desde Chrome (`Ctrl+P` → Guardar como PDF, orientación horizontal).
+
+4. **IF (¿Tiene email?)**: Filtra los alumnos según si tienen `email_destinatario` en el Excel. Los que tienen email pasan al nodo de envío.
+
+5. **Send Email (Enviar Diploma)**: Envía el diploma como adjunto HTML. La familia recibe el diploma en su bandeja de entrada sin necesidad de acceder a ninguna plataforma.
+
+6. **Resumen** (nodo Code): Genera un resumen de la ejecución: diplomas generados, cuántos se enviaron por email y ruta al archivo `TODOS.html`.
+
+**Decisiones de diseño**:
+- **Logo en Base64**: Garantiza diplomas portátiles. Un archivo enviado por email o copiado a otro equipo se visualiza correctamente sin depender del sistema de archivos del USB.
+- **Formato HTML imprimible en lugar de PDF**: n8n no incluye un motor de renderizado de PDF. El HTML imprimible desde Chrome produce resultados equivalentes sin requerir librerías adicionales de generación de documentos.
+- **SMTP opcional**: Si no se configura SMTP, el workflow genera igualmente todos los archivos HTML. El envío por email es una funcionalidad adicional, no un requisito.
+
 ## 3.2 Documentación técnica
 
 ### 3.2.1 Estructura del proyecto
@@ -551,9 +610,14 @@ proyecto/
 │   ├── stop.bat                # Parada en Windows
 │   └── stop.sh                 # Parada en Linux/macOS
 ├── workflows/
-│   ├── CATALOGO.md             # Catálogo organizado de los 21 workflows
+│   ├── CATALOGO.md             # Catálogo organizado de los 23 workflows
+│   ├── GUIA-DE-USO.md          # Guía práctica con ejemplos curl
 │   ├── 01 a 15 (*.json)       # Workflows online (requieren Internet)
-│   └── 16 a 21 (*.json)       # Workflows offline (funcionan sin Internet)
+│   ├── 16 a 21 (*.json)       # Workflows offline (funcionan sin Internet)
+│   └── 22 a 23 (*.json)       # Herramientas de productividad (offline, generan archivos)
+├── data/                       # Datos de entrada/salida para workflows de archivos
+│   ├── conversion/             # WF 22: input/ (archivos a convertir) y output/ (xlsx generados)
+│   └── diplomas/               # WF 23: alumnos.xlsx, logo.png, output/ (HTML generados)
 ├── n8n-data/                   # Datos persistentes de n8n (no se sube a GitHub)
 │   └── database.sqlite         # Base de datos con workflows y configuración
 └── Memoria/                    # Documentación del proyecto
@@ -582,7 +646,7 @@ proyecto/
 
 ### 3.2.4 Workflows implementados
 
-La siguiente tabla resume los veintiún workflows desarrollados en el proyecto, separados por modo de funcionamiento.
+La siguiente tabla resume los veintitrés workflows desarrollados en el proyecto, separados por modo de funcionamiento.
 
 **Workflows online** (requieren conexión a Internet):
 
@@ -614,6 +678,13 @@ La siguiente tabla resume los veintiún workflows desarrollados en el proyecto, 
 | 19 - Control de Préstamos Offline | Gestión TIC | Gestiona préstamos/devoluciones con alertas de retraso | Webhook POST `/prestamos-offline` | Code, Respond to Webhook | SQLite (staticData) |
 | 20 - Sorteo de Grupos | Herramientas docentes | Reparte alumnos en grupos aleatorios equilibrados | Webhook POST `/sorteo-grupos` | Code, Respond to Webhook | Sin estado |
 | 21 - Diario de Actividad del Centro | Administración | Libro de registro digital con búsqueda y resúmenes | Webhook POST `/diario-actividad` | Code, Respond to Webhook | SQLite (staticData) |
+
+**Herramientas de productividad** (offline, generan archivos en disco):
+
+| Workflow | Categoría | Descripción breve | Trigger | Nodos principales | Salida |
+|----------|-----------|-------------------|---------|-------------------|--------|
+| 22 - Convertidor Excel Masivo | Herramientas TIC | Convierte lotes de .xls/.xlsm/.xlsb/.csv a .xlsx y genera reporte CSV | Manual Trigger | Code x2 | Archivos .xlsx + CSV reporte |
+| 23 - Generador de Diplomas | Herramientas docentes | Genera diplomas HTML personalizados con logo y colores corporativos; envío opcional por email | Manual Trigger | Set, Code, IF, Send Email | Archivos .html por alumno + TODOS.html |
 
 Todos los workflows se exportan en formato JSON y se almacenan en la carpeta `workflows/` del proyecto. Esto permite importarlos en cualquier instancia de n8n sin necesidad de recrearlos manualmente, lo que refuerza el objetivo de portabilidad del proyecto. El catálogo completo con clasificación detallada está disponible en `workflows/CATALOGO.md`.
 

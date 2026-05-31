@@ -1,6 +1,6 @@
 # Catalogo de Workflows
 
-> Referencia completa de los 21 workflows incluidos en el proyecto. Organizados por categoria y modo de funcionamiento.
+> Referencia completa de los 23 workflows incluidos en el proyecto. Organizados por categoria y modo de funcionamiento.
 
 ---
 

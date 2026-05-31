@@ -811,6 +811,19 @@ Para usar carpetas distintas, edita el nodo **"Configurar Rutas"** antes de ejec
 **Modo:** Offline para generación de archivos + SMTP para envío de emails
 **Requiere:** SMTP configurado en n8n solo si se quieren enviar emails
 
+### Logo del centro
+
+Coloca el archivo del logo en:
+```
+data\diplomas\logo.png
+```
+
+El workflow lo lee automáticamente y lo **embebe como Base64** dentro de cada diploma HTML. Esto hace que los diplomas sean archivos autocontenidos: funcionan sin conexión y se pueden enviar por email sin adjuntar la imagen por separado. Si no existe el archivo `logo.png`, los diplomas se generan igualmente sin logo.
+
+El diseño aplica los **colores corporativos de Salesianos Los Boscos**: rojo `#CC1C1C` para borde, título y subrayado del nombre del alumno; gris `#5C6770` para el nombre del centro y la promoción. El logo aparece centrado entre las firmas del tutor y dirección, encima de la fecha.
+
+---
+
 ### Preparar el Excel
 
 Crear el archivo `data\diplomas\alumnos.xlsx` (o copiar y renombrar `data\diplomas\input\PLANTILLA.csv` como `.xlsx`).
