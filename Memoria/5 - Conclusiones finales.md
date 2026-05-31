@@ -61,11 +61,11 @@ Para dar una visión cuantitativa del trabajo realizado:
 
 | Métrica | Valor |
 |---------|-------|
-| Workflows implementados | 21 (15 online + 6 offline) |
+| Workflows implementados | 23 (15 online + 6 offline + 2 productividad) |
 | Categorías cubiertas | 8 |
-| Líneas de JSON (workflows) | ~3.200 |
-| Líneas de documentación técnica (Cap. 3) | ~670 |
-| Pruebas funcionales documentadas | 38 |
+| Líneas de JSON (workflows) | ~4.100 |
+| Líneas de documentación técnica (Cap. 3) | ~380 |
+| Pruebas funcionales documentadas | 47 |
 | Pruebas de errores y casos límite | 4 escenarios |
 | Scripts multiplataforma | 4 (start/stop × Windows/Linux) |
 | Diagramas técnicos | 6 (arquitectura, flujos, Gantt) |

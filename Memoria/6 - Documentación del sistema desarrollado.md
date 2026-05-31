@@ -94,7 +94,7 @@ Para guardar un workflow y compartirlo:
 
 ### Workflows disponibles
 
-El proyecto incluye **21 workflows** organizados en dos modos de funcionamiento. Para una referencia completa con endpoints, dependencias y nodos utilizados, consultar el catálogo en `workflows/CATALOGO.md`. Para una guía práctica paso a paso con ejemplos de uso y comandos listos para copiar y pegar, consultar `workflows/GUIA-DE-USO.md`.
+El proyecto incluye **23 workflows** organizados en tres modos de funcionamiento. Para una referencia completa con endpoints, dependencias y nodos utilizados, consultar el catálogo en `workflows/CATALOGO.md`. Para una guía práctica paso a paso con ejemplos de uso y comandos listos para copiar y pegar, consultar `workflows/GUIA-DE-USO.md`.
 
 **Workflows online** (requieren conexión a Internet):
 

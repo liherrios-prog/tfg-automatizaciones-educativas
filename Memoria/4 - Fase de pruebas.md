@@ -1,132 +1,51 @@
 # 4. FASE DE PRUEBAS
 
-## 4.1 Pruebas realizadas
+## 4.1 Metodología
 
-A continuación se documenta la batería de pruebas realizadas para verificar el correcto funcionamiento del sistema.
+Para cada workflow preparé datos de ejemplo y ejecuté el flujo completo desde la interfaz de n8n o mediante `curl` al webhook. Las pruebas cubren tres tipos de escenarios: el caso normal (datos correctos, flujo completo), casos límite (campos vacíos, datos ausentes, situaciones extremas) y casos de error (entradas inválidas, servicios no disponibles).
 
-### 4.1.1 Pruebas de infraestructura
+Los workflows offline (16-21) se probaron con el WiFi físicamente desconectado. Los workflows 22 y 23 se probaron generando archivos reales y verificando el contenido de cada salida.
 
-| Prueba | Descripción | Resultado esperado | Resultado obtenido |
-|--------|-------------|-------------------|-------------------|
-| Arranque del contenedor | Ejecutar `scripts/start.bat` | n8n accesible en `http://localhost:5678` | Correcto. n8n arranca en unos 10 segundos y se accede desde el navegador sin problemas. La primera vez tarda algo más porque Docker descarga la imagen. |
-| Persistencia de datos | Crear un workflow, parar y reiniciar el contenedor | El workflow sigue disponible tras reiniciar | Correcto. Creé un workflow de prueba, paré el contenedor con `stop.bat` y al volver a arrancar el workflow seguía ahí con todos los nodos y configuraciones intactos. Los datos se guardan en la carpeta `n8n-data/`. |
-| Portabilidad USB | Copiar la carpeta completa a otro equipo con Docker | n8n arranca con los mismos workflows y datos | Correcto. Copié toda la carpeta a un USB y lo probé en otro ordenador del aula. Al ejecutar `start.bat` arrancó con los mismos workflows y credenciales. Solo hizo falta que el otro equipo tuviera Docker Desktop instalado. |
-| Creación automática de `.env` | Arrancar sin archivo `.env` existente | Se crea `.env` desde `.env.example` automáticamente | Correcto. Borré el archivo `.env` y al ejecutar `start.bat` el script detectó que no existía, copió `.env.example` como `.env` y arrancó con la configuración por defecto. |
-| Parada limpia | Ejecutar `scripts/stop.bat` | El contenedor se detiene sin pérdida de datos | Correcto. El contenedor se detuvo de forma limpia en unos 3 segundos. Al volver a arrancar, todos los datos seguían disponibles sin ninguna pérdida. |
-| Cambio de puerto | Modificar `N8N_PORT` en `.env` y reiniciar | n8n escucha en el nuevo puerto | Correcto. Cambié el puerto a 8080 en el `.env`, reinicié y n8n respondía en `http://localhost:8080`. Al volver a poner 5678 y reiniciar, todo funcionaba como antes. |
-
-### 4.1.2 Pruebas de workflows
-
-Para probar cada workflow preparé datos de ejemplo e hice ejecuciones manuales desde la interfaz de n8n. En algunos casos usé `curl` para simular peticiones al webhook.
-
-| Prueba | Workflow | Entrada de prueba | Salida esperada | Salida obtenida | Resultado |
-|--------|----------|-------------------|-----------------|-----------------|-----------|
-| Envío masivo a lista de alumnos | Email Masivo | Hoja de Google Sheets con 5 filas de prueba (nombre, email, curso) y una plantilla de mensaje | Se envía un email personalizado a cada dirección de la hoja | Se enviaron los 5 emails correctamente. Cada uno incluía el nombre del alumno y su curso en el cuerpo del mensaje | Correcto |
-| Envío con campo email vacío | Email Masivo | Misma hoja pero con una fila sin email | Se saltan las filas sin email y se envían el resto | n8n saltó la fila vacía y envió 4 emails. En el log apareció un aviso de que se omitió una fila | Correcto |
-| Recepción de respuesta de formulario | Google Forms | POST con `curl` al webhook simulando una respuesta de Google Forms con campos nombre, asignatura y valoración | n8n recibe los datos, los procesa y los registra en Google Sheets | Los datos llegaron al webhook y se insertaron en la hoja de cálculo en una fila nueva con todos los campos correctos | Correcto |
-| Formulario con campos incompletos | Google Forms | POST al webhook con el campo valoración vacío | Se registra la fila con el campo vacío | La fila se insertó con la celda de valoración en blanco, sin errores | Correcto |
-| Recordatorio de reuniones de la semana | Recordatorio Reuniones | Calendario de Google con 3 reuniones creadas en la semana actual | Se envía un email resumen con las reuniones de la semana | Se recibió el email con el listado de las 3 reuniones, incluyendo fecha, hora y título de cada una | Correcto |
-| Semana sin reuniones | Recordatorio Reuniones | Calendario sin ninguna reunión en la semana | Se envía email indicando que no hay reuniones programadas | Se recibió el email indicando que no había reuniones para la semana. El mensaje era claro | Correcto |
-| Registro de asistencia | Control Asistencia | POST al webhook con JSON: alumno, fecha, estado (presente/ausente) y asignatura | Se registra la asistencia en Google Sheets | La fila se añadió correctamente en la hoja de asistencia con todos los campos | Correcto |
-| Registro duplicado mismo día | Control Asistencia | POST con los mismos datos de alumno y fecha que una entrada anterior | Se actualiza el registro existente o se crea uno nuevo según la configuración | Se creó una nueva fila. Esto lo tuve en cuenta: el workflow no comprueba duplicados, así que es responsabilidad del usuario no enviar dos veces el mismo registro | Funciona según lo esperado |
-| Consolidación de notas | Consolidar Notas | Hoja de Google Sheets con notas de 8 alumnos en 3 asignaturas (algunos con notas pendientes) | Se genera una hoja resumen con la media de cada alumno y un listado de suspensos | La hoja resumen se creó con las medias calculadas correctamente. Los alumnos con alguna nota por debajo de 5 aparecían marcados en el listado de suspensos | Correcto |
-| Notas con celdas vacías | Consolidar Notas | Misma hoja pero con 2 alumnos sin nota en una asignatura | Se calcula la media solo con las notas disponibles | Las celdas vacías se trataron como 0 en la media. Esto es algo que habría que mejorar, pero funciona de forma predecible | Funciona según lo esperado |
-| Generación de informe mensual | Informe Asistencia | Registros de asistencia del mes anterior en Google Sheets (20 días lectivos, 15 alumnos) | Se genera un informe con porcentaje de asistencia por alumno y resumen general | El informe se generó correctamente con los porcentajes de cada alumno y el porcentaje global del grupo. Se envió por email al profesor | Correcto |
-| Mes sin registros | Informe Asistencia | Hoja de asistencia vacía para el mes consultado | Se genera un informe indicando que no hay datos | El workflow detectó que no había registros y envió un email informando de que no se encontraron datos de asistencia para ese mes | Correcto |
-| Backup diario de workflows | Backup Datos | Ejecución manual del trigger con 3 workflows activos en n8n | Se genera un archivo JSON con los 3 workflows y se sube a Google Drive | El archivo se generó con el nombre correcto (backup-n8n-fecha.json) y contenía los 3 workflows completos. Se subió a la carpeta configurada de Drive | Correcto |
-| Recordatorio de examen próximo | Entregas y Exámenes | Hoja con un examen programado para mañana y otro para dentro de 5 días | Se envía recordatorio solo del examen de mañana (dentro de la ventana de 3 días) | Se envió el email con la etiqueta "MAÑANA" en el asunto. El examen de dentro de 5 días no generó notificación | Correcto |
-| Día sin eventos próximos | Entregas y Exámenes | Hoja con todos los eventos en fechas posteriores a 3 días | No se envía ningún email | El workflow terminó sin enviar nada, según lo esperado | Correcto |
-| Préstamo de equipo | Inventario TIC | POST al webhook con `{ equipo: "PORTATIL-012", accion: "prestar", profesor: "García" }` | Se registra el préstamo en Google Sheets con estado "prestado" | La fila se añadió correctamente con la fecha, hora y estado. El webhook devolvió la confirmación JSON | Correcto |
-| Devolución de equipo | Inventario TIC | POST al webhook con `{ equipo: "PORTATIL-012", accion: "devolver", profesor: "García" }` | Se registra la devolución con estado "disponible" | Nueva fila con estado "disponible" y la fecha/hora de devolución. El historial de préstamo anterior se conservó | Correcto |
-| Cumpleaños detectado | Cumpleaños Alumnos | Hoja con un alumno cuya fecha de nacimiento coincide con hoy (día y mes) | Se envía email al tutor informando del cumpleaños | El tutor recibió el email con el nombre del alumno y la edad que cumple | Correcto |
-| Día sin cumpleaños | Cumpleaños Alumnos | Hoja con alumnos cuyas fechas de nacimiento no coinciden con hoy | No se envía ningún email | El workflow terminó sin enviar nada | Correcto |
-| Alumnos con absentismo | Alerta Absentismo | Hoja de asistencia con 2 alumnos con 4 y 5 ausencias en el mes, y otros con 1-2 | Se envía alerta solo con los 2 alumnos que superan el umbral de 3 | El informe listó los 2 alumnos ordenados por número de faltas, con porcentaje de asistencia correcto | Correcto |
-| Mes sin absentismo | Alerta Absentismo | Hoja de asistencia donde ningún alumno supera las 3 ausencias | No se envía ningún email | El workflow terminó sin enviar nada | Correcto |
-| Boletín con eventos y avisos | Boletín Semanal | Hoja con 2 cursos, cada uno con eventos y avisos del tutor | Se envía un boletín personalizado a cada curso | Cada curso recibió su boletín con las fechas de la semana siguiente calculadas correctamente | Correcto |
-| Curso sin email de grupo | Boletín Semanal | Hoja con 3 cursos, uno sin email_grupo | Se envían 2 boletines y se omite el curso sin email | Se enviaron 2 emails, el curso sin email se filtró sin error | Correcto |
-| Solicitud urgente de material | Solicitud Material | POST al webhook con `{ profesor: "López", tipo: "laboratorio", descripcion: "Microscopios para práctica", urgencia: "alta" }` | Se registra la solicitud y se notifica al coordinador | La solicitud se guardó en la hoja con estado "pendiente" y el coordinador recibió el email con "URGENTE" en el asunto | Correcto |
-| Solicitud no urgente | Solicitud Material | POST al webhook con urgencia "baja" | Se registra la solicitud pero NO se envía email | La solicitud se guardó correctamente. No se envió email al coordinador. El webhook devolvió confirmación JSON | Correcto |
-| Ausencia con sustituto disponible | Guardias | POST con `{ profesor: "Martínez", motivo: "Cita médica", franja_horaria: "3a" }` y cuadrante con guardia en esa franja | Se asigna el sustituto y se le notifica | El sustituto recibió email con los detalles. La respuesta JSON incluyó el nombre del sustituto asignado | Correcto |
-| Ausencia sin sustituto | Guardias | POST con una franja sin profesor de guardia en el cuadrante | Se avisa a jefatura de que no hay sustituto | Jefatura recibió el email de alerta. La respuesta JSON indicó "No disponible" y que se había avisado a jefatura | Correcto |
-| Envío mensual de encuesta | Encuesta Satisfacción | Hoja con 4 familias, una sin email | Se envían 3 encuestas y se registran los envíos | Se enviaron 3 emails con el enlace a la encuesta. La hoja de log registró los 3 envíos con fecha y hora | Correcto |
-
-#### Pruebas de workflows offline (16-21)
-
-Estos workflows se probaron con el WiFi desconectado para verificar que funcionan al 100% sin Internet. Las peticiones se hicieron con `curl` al webhook local.
-
-| Prueba | Workflow | Entrada de prueba | Salida esperada | Salida obtenida | Resultado |
-|--------|----------|-------------------|-----------------|-----------------|-----------|
-| Registrar notas de un alumno | Calculadora Notas Offline | POST con `{ "alumno": "María García", "curso": "2ESO-A", "examen": 7.5, "trabajo": 8, "participacion": 9 }` | Se calcula la media ponderada (7.95) y se devuelve la calificación "Notable" | La media se calculó correctamente (7.95), la calificación devuelta fue "Notable" y el registro se almacenó en staticData | Correcto |
-| Consultar histórico de notas | Calculadora Notas Offline | POST con `{ "accion": "consultar", "curso": "2ESO-A" }` | Se devuelve el listado de notas registradas para ese curso | Se devolvió el registro de María García con todos los campos, incluyendo la fecha de registro | Correcto |
-| Consultar sin registros previos | Calculadora Notas Offline | POST con `{ "accion": "consultar", "curso": "4ESO-B" }` (curso sin datos) | Se devuelve un array vacío sin errores | Se devolvió `{ "registros": [], "total": 0 }` sin ningún error | Correcto |
-| Registrar incidencia | Registro Incidencias | POST con `{ "alumno": "Carlos López", "curso": "3ESO-B", "tipo": "leve", "descripcion": "Uso del móvil en clase", "reportado_por": "Prof. Martínez" }` | Se registra la incidencia con ID y timestamp automáticos | La incidencia se registró con ID único y fecha/hora. La respuesta incluyó todos los campos | Correcto |
-| Tipo de incidencia inválido | Registro Incidencias | POST con `{ "tipo": "moderada" }` (tipo no permitido) | Se devuelve un error indicando los tipos válidos | Se devolvió error: "Tipo no válido. Use: leve, grave, muy_grave" | Correcto |
-| Resumen estadístico de incidencias | Registro Incidencias | POST con `{ "accion": "resumen" }` tras registrar 5 incidencias de distintos tipos | Se devuelve desglose por tipo y por curso | El resumen mostró: 3 leves (60%), 1 grave (20%), 1 muy grave (20%), desglose por curso correcto | Correcto |
-| Generar contraseñas para lista de alumnos | Generador Contraseñas | POST con `{ "alumnos": ["María García", "Carlos López", "Ana Martínez"], "longitud": 12 }` | Se generan 3 pares usuario/contraseña | Se generaron 3 credenciales: usuarios basados en el nombre (mgarcia, clopez, amartinez), contraseñas de 12 caracteres con mayúsculas, minúsculas, números y símbolos | Correcto |
-| Contraseñas sin caracteres ambiguos | Generador Contraseñas | POST con `{ "alumnos": ["Test User"], "longitud": 50 }` (longitud larga para aumentar probabilidad) | Ninguna contraseña contiene 0, O, l, I, 1 | Se verificó manualmente: ninguno de los caracteres ambiguos apareció en la contraseña generada | Correcto |
-| Prestar un equipo | Control Préstamos Offline | POST con `{ "accion": "prestar", "equipo": "PORTATIL-012", "profesor": "García" }` | Se registra el préstamo con fecha y estado "prestado" | El préstamo se registró correctamente con timestamp automático. La respuesta confirmó la operación | Correcto |
-| Prestar equipo ya prestado | Control Préstamos Offline | POST con el mismo equipo "PORTATIL-012" sin haberlo devuelto | Se devuelve error indicando que el equipo ya está prestado | Se devolvió error: "El equipo PORTATIL-012 ya está prestado a García" | Correcto |
-| Devolver equipo | Control Préstamos Offline | POST con `{ "accion": "devolver", "equipo": "PORTATIL-012" }` | Se marca como devuelto con fecha de devolución | El préstamo se actualizó a "devuelto" con la fecha. El equipo quedó disponible para nuevos préstamos | Correcto |
-| Alerta de préstamo prolongado | Control Préstamos Offline | Consultar inventario con un equipo prestado hace más de 7 días (simulado modificando la fecha en staticData) | Se marca el equipo con alerta de retraso | El equipo aparecía con `"alerta": true` y el número de días transcurridos | Correcto |
-| Sortear 6 alumnos en 3 grupos | Sorteo Grupos | POST con `{ "alumnos": ["María", "Carlos", "Ana", "Pedro", "Lucía", "Jorge"], "num_grupos": 3 }` | Se generan 3 grupos de 2 alumnos cada uno | Se generaron 3 grupos equilibrados (2 alumnos cada uno). La distribución fue aleatoria — al ejecutarlo varias veces, los grupos cambiaban | Correcto |
-| Sortear con número impar | Sorteo Grupos | POST con 7 alumnos y 3 grupos | Se generan 2 grupos de 3 y 1 de 2 (o similar distribución equilibrada) | Se generaron grupos de 3, 2 y 2 alumnos. La diferencia máxima entre grupos fue de 1 alumno | Correcto |
-| Registrar entrada en el diario | Diario Actividad | POST con `{ "tipo": "evento", "titulo": "Excursión al museo", "descripcion": "Salida con 2ESO al Museo de Ciencias", "responsable": "Prof. López" }` | Se registra la entrada con timestamp y tipo | La entrada se almacenó correctamente con todos los campos y fecha automática | Correcto |
-| Buscar por texto en el diario | Diario Actividad | POST con `{ "accion": "consultar", "buscar": "museo" }` | Se devuelven las entradas que contengan "museo" en título o descripción | Se encontró la entrada de la excursión. La búsqueda fue case-insensitive (buscando "museo" encontró "Museo") | Correcto |
-| Resumen del diario | Diario Actividad | POST con `{ "accion": "resumen" }` tras registrar 8 entradas de distintos tipos | Se devuelve desglose por tipo y entradas recientes | El resumen mostró: total 8 entradas, desglose por tipo correcto, y las 5 más recientes ordenadas por fecha | Correcto |
-| Persistencia offline tras reinicio | Todos los offline | Registrar datos, parar el contenedor con `stop.bat`, reiniciar con `start.bat` y consultar | Los datos registrados persisten tras el reinicio | Todos los datos (notas, incidencias, préstamos, diario) seguían disponibles tras reiniciar el contenedor. SQLite los conserva en `n8n-data/` | Correcto |
-
-#### Pruebas de herramientas de productividad (22-23)
-
-Estos workflows generan archivos físicos en disco. Las pruebas verifican tanto la corrección del contenido generado como el comportamiento ante entradas problemáticas.
-
-| Prueba | Workflow | Entrada de prueba | Salida esperada | Salida obtenida | Resultado |
-|--------|----------|-------------------|-----------------|-----------------|-----------|
-| Conversión de lote mixto | Convertidor Excel Masivo | Carpeta con 3 archivos: un `.xls`, un `.xlsm` y un `.csv` | Se generan 3 archivos `.xlsx` y un reporte CSV con estado `ok` para cada uno | Los 3 archivos se convirtieron correctamente. El reporte CSV recogió el nombre, número de hojas y tiempo de conversión de cada uno | Correcto |
-| Archivo protegido con contraseña | Convertidor Excel Masivo | Lote con 2 archivos normales y 1 `.xls` protegido con contraseña | Se convierten los 2 archivos normales; el protegido aparece en el reporte con estado `error` | Los 2 archivos normales se convirtieron sin problema. El archivo protegido aparece en el reporte con `estado: error` y el mensaje de error de SheetJS. El workflow no se interrumpió | Correcto |
-| Carpeta de entrada vacía | Convertidor Excel Masivo | Ejecutar el workflow con la carpeta `input/` vacía | Se genera un reporte CSV vacío sin errores | El reporte se generó con cabecera pero sin filas. No se produjo ningún error | Correcto |
-| Hojas múltiples preservadas | Convertidor Excel Masivo | Archivo `.xls` con 3 hojas de datos | El `.xlsx` generado contiene las 3 hojas con sus datos intactos | El archivo `.xlsx` resultante contenía las 3 hojas con todos los datos correctos | Correcto |
-| Generar diplomas desde Excel | Generador de Diplomas | Excel con 5 alumnos (todos los campos rellenos) | Se generan 5 archivos HTML individuales y un `TODOS.html` en `output/2026/` | Se generaron los 5 diplomas individuales y el archivo batch. Cada HTML incluía el nombre del alumno, curso, tutor y fecha correctos | Correcto |
-| Logo embebido en el diploma | Generador de Diplomas | Excel con 1 alumno; archivo `logo.png` presente en `data/diplomas/` | El HTML generado contiene el logo codificado en Base64, visible sin conexión a Internet | Se abrió el diploma HTML sin conexión y el logo se mostró correctamente. Al inspeccionar el código, el `src` de la imagen era una cadena Base64 | Correcto |
-| Alumno sin email | Generador de Diplomas | Excel con 1 alumno sin campo `email_destinatario` | Se genera el diploma HTML en disco pero no se intenta enviar email | El diploma se generó en disco. El nodo IF filtró correctamente la fila y no se ejecutó el nodo de envío | Correcto |
-| Alumno con email configurado | Generador de Diplomas | Excel con 1 alumno con email válido; credencial SMTP configurada | Se genera el diploma y se envía como adjunto HTML al email indicado | El diploma llegó a la bandeja de entrada con el archivo `.html` como adjunto. El cuerpo del email incluía el nombre del alumno y el nombre del centro | Correcto |
-| Excel sin columnas requeridas | Generador de Diplomas | Excel con columnas con nombres incorrectos (sin `nombre_alumno`) | Se devuelve un error descriptivo | n8n lanzó un error en el nodo Code indicando que no se encontraron filas válidas en la hoja. El mensaje de error era legible y orientaba al usuario | Correcto |
-
-### 4.1.3 Pruebas de errores y casos límite
-
-Además de las pruebas funcionales, quise comprobar qué pasa cuando las cosas van mal. Es importante documentar estos casos porque un profesor que use el sistema en su centro puede encontrarse con cualquiera de estas situaciones.
-
-**Docker no está arrancado**
-
-Los scripts de arranque detectan automáticamente si Docker no está instalado e intentan instalarlo (mediante `winget` en Windows, el script oficial de Docker en Linux, o Homebrew en macOS). Si Docker está instalado pero no arrancado, los scripts intentan iniciarlo y esperan hasta 60 segundos. Si tras ese tiempo no arranca, muestran un mensaje pidiendo al usuario que lo inicie manualmente.
-
-**Puerto ocupado por otra aplicación**
-
-Si el puerto 5678 ya está siendo usado por otro programa, Docker muestra un error `Bind for 0.0.0.0:5678 failed: port is already allocated`. La solución es sencilla: abrir el archivo `.env`, cambiar `N8N_PORT` a otro valor (por ejemplo 8080) y volver a arrancar. También se puede cerrar la aplicación que esté usando ese puerto, aunque lo más rápido es cambiar el puerto en el `.env`.
-
-**Sin conexión a Internet**
-
-Probé a desconectar el WiFi con n8n ya arrancado. Los workflows que trabajan solo con datos locales siguen funcionando sin problema. Sin embargo, los que necesitan conectarse a Google Sheets o enviar emails fallan con un error de conexión. n8n muestra el error en el nodo correspondiente y el resto del workflow no se ejecuta. En cuanto se recupera la conexión, al volver a ejecutar el workflow funciona con normalidad. Esto es algo a tener en cuenta: si el centro tiene cortes de Internet frecuentes, los workflows que dependen de servicios externos no van a funcionar en esos momentos.
-
-**USB extraído en caliente**
-
-Esta prueba la hice con cuidado. Arranqué n8n desde el USB y mientras estaba funcionando, extraje el USB sin hacer "Expulsar de forma segura". Lo que pasó es que n8n se detuvo inmediatamente y Docker mostró errores de lectura del volumen. Al volver a conectar el USB y arrancar, los datos se habían conservado hasta el momento de la extracción, ya que SQLite guarda los datos de forma periódica. No hubo corrupción de la base de datos, aunque esto podría ocurrir si se extrae justo en medio de una escritura. La recomendación es siempre parar n8n con `stop.bat` antes de extraer el USB.
+La tabla completa con los datos de entrada y salida de las 51 pruebas está en el Anexo B.
 
 ## 4.2 Resumen de resultados
 
-### Totales por categoría
-
-| Categoría de prueba | Pruebas realizadas | Correctas | Fallidas |
-|---------------------|-------------------|-----------|----------|
-| Infraestructura (arranque, persistencia, puertos, USB) | 6 | 6 | 0 |
+| Categoría | Pruebas | Correctas | Fallidas |
+|-----------|---------|-----------|---------|
+| Infraestructura (arranque, persistencia, USB) | 6 | 6 | 0 |
 | Workflows online (01-15) | 18 | 18 | 0 |
 | Workflows offline (16-21) | 14 | 14 | 0 |
 | Herramientas de productividad (22-23) | 9 | 9 | 0 |
 | Errores y casos límite | 4 | 4 | 0 |
 | **Total** | **51** | **51** | **0** |
 
-Todas las pruebas se superaron satisfactoriamente. En algunos casos (celdas vacías en notas, registros duplicados), el comportamiento era predecible y coherente aunque no ideal. Estos casos quedan documentados como posibles mejoras futuras.
+Todas las pruebas se superaron. En algunos casos (celdas vacías en notas, registros duplicados de asistencia) el comportamiento no era ideal pero sí predecible y coherente, y queda documentado como posible mejora futura.
 
-### Matriz de cobertura por workflow
+## 4.3 Casos destacados
+
+De las 51 pruebas, selecciono las más representativas.
+
+**Portabilidad USB.** Copié la carpeta completa del proyecto a un USB y lo conecté a otro ordenador del aula con Docker Desktop instalado. Al ejecutar `start.bat`, n8n arrancó con los mismos workflows y datos. Solo era necesario que el otro equipo tuviera Docker.
+
+**Workflows offline con WiFi desconectado.** Registré datos en los workflows 16-21 con el WiFi físicamente desconectado. Todos respondieron correctamente. Después paré el contenedor con `stop.bat` y lo volví a arrancar; los datos seguían disponibles. SQLite los conserva en `n8n-data/database.sqlite`.
+
+**USB extraído en caliente.** Lo extraje sin "Expulsar de forma segura" mientras n8n estaba corriendo. El contenedor se detuvo con errores de lectura. Al reconectarlo y arrancar, los datos se conservaron hasta el momento de la extracción, sin corrupción de la base de datos. La recomendación es siempre parar con `stop.bat` antes de extraer.
+
+**Diploma autocontenido.** Generé un diploma con el workflow 23 y lo abrí en un navegador sin conexión a Internet. El logo de Salesianos Los Boscos se mostró correctamente porque está codificado en Base64 dentro del propio HTML. También lo copié a otro equipo sin el USB conectado y funcionó igual.
+
+**Archivo Excel protegido con contraseña.** Incluí un `.xls` con contraseña en el lote del workflow 22. Apareció en el reporte con `estado: error` y el mensaje de SheetJS. Los demás archivos del lote se convirtieron sin problema. El workflow no se interrumpió.
+
+**Tipo de incidencia inválido.** Envié al webhook del workflow 17 un tipo no permitido (`"tipo": "moderada"`). La respuesta fue inmediata: `"error": "Tipo no válido. Use: leve, grave, muy_grave"`. El workflow valida la entrada antes de guardar.
+
+## 4.4 Comportamiento ante errores frecuentes
+
+**Sin conexión a Internet.** Los workflows offline siguen funcionando sin problema. Los online fallan con error de conexión en el nodo de Google Sheets o SMTP y se recuperan solos al volver a haber conexión.
+
+**Puerto ocupado.** Si el puerto 5678 ya está en uso, Docker muestra `Bind for 0.0.0.0:5678 failed: port is already allocated`. Se resuelve cambiando `N8N_PORT` en `.env` y reiniciando.
+
+**Docker no arrancado.** Los scripts esperan hasta 60 segundos a que Docker arranque. Si no responde, muestran un mensaje pidiendo que se inicie manualmente.
+
+## 4.5 Cobertura por workflow
 
 | Workflow | Funcional | Caso límite | Offline verificado |
 |----------|:---------:|:-----------:|:------------------:|
@@ -148,10 +67,8 @@ Todas las pruebas se superaron satisfactoriamente. En algunos casos (celdas vac�
 | 16 - Calculadora Notas | ✓ | ✓ (curso sin datos) | ✓ |
 | 17 - Registro Incidencias | ✓ | ✓ (tipo inválido) | ✓ |
 | 18 - Generador Contraseñas | ✓ | ✓ (sin ambiguos) | ✓ |
-| 19 - Control Préstamos | ✓ | ✓ (equipo ya prestado, retraso) | ✓ |
+| 19 - Control Préstamos | ✓ | ✓ (equipo ya prestado, retraso 7d) | ✓ |
 | 20 - Sorteo Grupos | ✓ | ✓ (número impar) | ✓ |
 | 21 - Diario Actividad | ✓ | — | ✓ |
 | 22 - Convertidor Excel | ✓ | ✓ (archivo protegido, carpeta vacía) | ✓ |
 | 23 - Generador Diplomas | ✓ | ✓ (sin email, sin logo, Excel inválido) | ✓ |
-
-Además, se realizó una prueba de **persistencia offline tras reinicio** que verificó que los datos de todos los workflows offline (16-21) sobreviven a una parada y arranque completa del contenedor Docker.
